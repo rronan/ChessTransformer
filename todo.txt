@@ -1,4 +1,0 @@
-logs with timestamps
-config as yaml
-save config in logs
-
