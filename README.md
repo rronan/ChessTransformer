@@ -2,7 +2,7 @@
 
 GPT2-based transformer trained to predict Stockfish evaluation and best move, on 132M chess positions. 
 
-Bot available to play against here: https://lichess.org/@/alphaminustwo
+Bot available to play against here: https://lichess.org/@/alphaminustwo. No tree search, just sampling in the predicted move distribution, among legal moves.
 
 Thanks:
 - lichess.org

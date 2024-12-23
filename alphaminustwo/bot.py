@@ -15,6 +15,7 @@ Usage:
 
 - Import AlphaMinusTwo in lichess-bot/homemade.py
 - Configure as per: https://github.com/lichess-bot-devs/lichess-bot/wiki/Create-a-homemade-engine
+- Set env var ALPHAMINUSTWO_CHKP=<PATH> and run the bot
 """
 
 CHKP = os.environ["ALPHAMINUSTWO_CHKP"]
@@ -36,6 +37,6 @@ class AlphaMinusTwo(MinimalEngine):
         self.model.eval()
 
     def search(self, board: chess.Board, *args: HOMEMADE_ARGS_TYPE) -> PlayResult:
-        move_list, eval_list = self.model.generate_from_board([board])
+        move_list, eval_list = self.model.generate_from_board([board], legal_move=True)
         print(eval_list[0])
         return PlayResult(move_list[0], None)
