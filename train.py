@@ -9,13 +9,16 @@ import torch
 from alphaminustwo.model import GPT
 from alphaminustwo.utils import init_log, update_stats_, save_checkpoint
 from alphaminustwo.dataset import get_train_loader, get_val_loader
-from alphaminustwo.config import train_cfg, model_cfg
+from alphaminustwo.config import TrainCFG, ModelCFG
+
+train_cfg = TrainCFG()
+model_cfg = ModelCFG()
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print("device:", device)
 torch.set_float32_matmul_precision("high")  # on RTF4090, 40% speedup
-torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
-torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 torch.manual_seed(train_cfg.manual_seed)
 if device == "cuda":
     torch.cuda.manual_seed(train_cfg.manual_seed)
@@ -47,9 +50,6 @@ if train_cfg.compile:
 if len(sys.argv) > 1:
     print("Loading:", sys.argv[1])
     chkp = torch.load(sys.argv[1], weights_only=False)
-    import pdb
-
-    pdb.set_trace()
     optimizer.load_state_dict(chkp["optimizer"])
     model.load_state_dict(chkp["model"])
 

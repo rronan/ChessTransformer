@@ -3,6 +3,9 @@ from typing import Optional
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+import chess
+
+from .dataset import move2tensor, fen2tensor
 
 
 class SelfAttention(nn.Module):
@@ -110,6 +113,28 @@ class GPT(nn.Module):
             loss = loss_eval + loss_move * self.weight_loss_move
         return y_eval, y_move, loss_eval, loss_move, loss
 
+    def generate_from_board(self, board_list:list, legal_move: bool=False):
+        x_list = [fen2tensor(board.fen()) for board in board_list]
+        x = torch.stack(x_list).to(self.device())
+        with torch.no_grad():
+            eval, logits, *_ = self.forward(x, None)
+        if legal_move:
+            for i, board in enumerate(board_list):
+                mask = torch.zeros(64**2)
+                for move in board.legal_moves:
+                    mask[move2tensor(move.uci())] = 1
+                logits[i].masked_fill_(mask==0, float('-inf'))
+        index_batch = torch.multinomial(logits.exp(), 1)
+        res = []
+        for index in index_batch:
+            uci = ""
+            for square in [index.item() // 64, index.item() % 64]:
+                i, j = square // 8, square % 8
+                uci += list("hgfedcba")[i]
+                uci += str(8 - j)
+            res.append(chess.Move.from_uci(uci))
+        return res, eval.tolist()
+
     def _init_weights(self, module):
         """
         From here: https://github.com/karpathy/nanoGPT/blob/master/model.py
@@ -158,3 +183,6 @@ class GPT(nn.Module):
         print(f"using fused AdamW: {use_fused}")
 
         return optimizer
+
+    def device(self):
+        return next(self.parameters()).device

@@ -69,24 +69,6 @@ def process_best_move(line):
     return move2tensor(best_move)
 
 
-
-def tensor2move(x: torch.Tensor, legal_moves=None):
-    res = ""
-    if legal_moves is not None:
-        mask = torch.zeros(64**2)
-        for move in legal_moves:
-            mask[move2tensor(move)] = 1
-        x.masked_fill_(mask==0, float('-inf'))
-    index = torch.multinomial(x.exp(), 1)[0].item()
-    print("Distribution:", [f"{xx.item():.4f}" for xx in x.exp() if xx > 0])
-    square_list = [index // 64, index % 64]
-    for square in square_list:
-        i, j = square // 8, square % 8
-        res += list("hgfedcba")[i]
-        res += str(8 - j)
-    return res
-
-
 def collate_fn(x_list):
     x = torch.stack([fen2tensor(x["fen"]) for x in x_list])
     y = torch.tensor([process_evaluation(x) for x in x_list])
@@ -129,5 +111,4 @@ def get_val_loader(data_path, bsz, val_size, num_workers=8, collate_fn=collate_f
 
 class DataStats:
     var = 1.2523940917372443
-    std: 1.1191041469573975
-    stockfish_1: 1.0465227365493774
+    stockfish_1: 0.6568744778633118

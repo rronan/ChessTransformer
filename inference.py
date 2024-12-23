@@ -3,13 +3,13 @@ from argparse import ArgumentParser
 
 import torch
 
-from alphaminustwo.dataset import tensor2move, fen2tensor
 from alphaminustwo.model import GPT
-import alphaminustwo.config
+from alphaminustwo.config import ModelCFG
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 torch.set_float32_matmul_precision("high")  # on RTF4090, 40% speedup
 
+model_cfg = ModelCFG()
 
 def parse_args():
     parser = ArgumentParser()
@@ -21,25 +21,23 @@ def parse_args():
 
 
 args = parse_args()
-model = GPT(alphaminustwo.model_cfg).to(device)
+model = GPT(model_cfg).to(device)
+
+# temp fix
 import sys
-sys.modules["config"] = alphaminustwo.config
+from alphaminustwo import config
+sys.modules["config"] = config
+
 chkp = torch.load(args.chkp, weights_only=False, map_location=torch.device(device))
 model.load_state_dict(chkp["model"])
 model.eval()
 
-
 def run_and_print(model, fen_list):
-    x_list = [fen2tensor(s) for s in fen_list]
-    x = torch.stack(x_list).to(device)
-    with torch.no_grad():
-        evals, moves, *_ = model(x, None)
-        for fen, eval, move in zip(fen_list, evals, moves):
-            board = chess.Board(fen)
-            legal_moves = [x.uci() for x in board.legal_moves]
-            print(legal_moves)
-            print("https://lichess.org/analysis/fromPosition/" + fen.replace(" ", "_"))
-            print(f"{eval * 60:.3f} - {tensor2move(move, legal_moves=legal_moves)}")
+    board_list = [chess.Board(fen=fen) for fen in fen_list]
+    move_list, eval_list = model.generate_from_board(board_list)
+    for fen, move, eval in zip(fen_list, move_list, eval_list):
+        print("https://lichess.org/analysis/fromPosition/" + fen.replace(" ", "_"))
+        print(f"{eval * 60:.3f} - {move.uci()}")
 
 
 if args.fen is not None:

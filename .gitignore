@@ -2,3 +2,4 @@ wandb
 log
 samples.txt
 alphaminustwo.egg-info/
+alphaminustwo/__pycache__/

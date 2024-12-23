@@ -42,5 +42,3 @@ class TrainCFG:
     assert val_interval % log_interval == 0
 
 
-model_cfg = ModelCFG()
-train_cfg = TrainCFG()

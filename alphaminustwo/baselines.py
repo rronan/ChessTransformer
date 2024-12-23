@@ -15,5 +15,7 @@ def stockfish_eval(fen, stockfish=None):
     if stockfish is None:
         Stockfish(path="/usr/games/stockfish")
     stockfish.set_fen_position(fen)
-    y = stockfish.get_evaluation()
+    z = stockfish.get_evaluation()
+    y = {"cp": None, "mate": None}
+    y[z["type"]] = z["value"]
     return process_evaluation(y)
