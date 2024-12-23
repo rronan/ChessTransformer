@@ -1,0 +1,8 @@
+numpy==1.26.4
+transformers
+datasets
+tqdm
+torch
+wandb
+stockfish
+
