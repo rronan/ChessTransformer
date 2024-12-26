@@ -1,7 +1,6 @@
 import wandb
 import sys
 from collections import defaultdict
-from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, ChainedScheduler
 from tqdm import tqdm
 from tqdm import trange
 import torch
@@ -10,6 +9,7 @@ from alphaminustwo.model import GPT
 from alphaminustwo.utils import init_log, update_stats_, save_checkpoint
 from alphaminustwo.dataset import get_train_loader, get_val_loader
 from alphaminustwo.config import TrainCFG, ModelCFG
+from alphaminustwo.schedulers import get_scheduler
 
 train_cfg = TrainCFG()
 model_cfg = ModelCFG()
@@ -30,37 +30,30 @@ val_loader = get_val_loader(train_cfg.data_path, 2 * train_cfg.bsz, train_cfg.va
 optimizer = model.configure_optimizers(
     train_cfg.weight_decay, train_cfg.lr, (train_cfg.beta1, train_cfg.beta2), device
 )
-scheduler = ChainedScheduler(
-    [
-        LinearLR(
-            optimizer,
-            start_factor=train_cfg.lr_start_factor,
-            total_iters=train_cfg.linear_warmup_iters,
-        ),
-        CosineAnnealingLR(
-            optimizer,
-            T_max=train_cfg.cosine_annealing_iters,
-            eta_min=train_cfg.lr * train_cfg.lr_end_factor,
-        ),
-    ]
-)
+scheduler = get_scheduler(optimizer, train_cfg)
 
-if train_cfg.compile:
-    model = torch.compile(model)
 if len(sys.argv) > 1:
     print("Loading:", sys.argv[1])
     chkp = torch.load(sys.argv[1], weights_only=False)
     optimizer.load_state_dict(chkp["optimizer"])
     model.load_state_dict(chkp["model"])
+if train_cfg.compile:
+    model = torch.compile(model)
 
 wandb.login()
-run = wandb.init(project="chess_transformer", config=vars(train_cfg) | vars(model_cfg))
+run = wandb.init(
+    project="chess_transformer",
+    config=vars(train_cfg) | vars(model_cfg),
+    resume_from=train_cfg.wandb_resume_from,
+)
 if train_cfg.watch_model:
     run.watch(model)
 log_file = init_log(train_cfg.log_dir)
 
 for step in range(0, train_cfg.max_steps, train_cfg.log_interval):
-    if step % train_cfg.val_interval == 0 and (step > 0 or train_cfg.start_with_eval):
+    if (step % train_cfg.val_interval == 0 and step > 0) or (
+        train_cfg.start_with_eval and step == 0
+    ):
         model.eval()
         with torch.no_grad():
             loss_eval_accum, loss_move_accum, loss_accum = 0, 0, 0

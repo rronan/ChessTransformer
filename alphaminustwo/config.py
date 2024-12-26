@@ -26,11 +26,14 @@ class TrainCFG:
     start_with_eval: bool = True
     log_interval: int = 100
     log_dir: str = "log"
-    max_steps: int = 263_000  # gpt:600_000
+    start_steps: int = 256_000
+    max_steps: int = 600_000  # gpt:600_000
     grad_clip: float = 1.0
     manual_seed = 1
     weight_decay: float = 0.1
     lr: float = 6e-4
+    lr_scheduler: str = "gpt2"
+    # lr_scheduler: str = "dummy"
     lr_start_factor: int = 0.1
     linear_warmup_iters: int = 2_000
     lr_end_factor: float = 0.1
@@ -38,7 +41,7 @@ class TrainCFG:
     beta1: float = 0.9
     beta2: float = 0.95
     watch_model: bool = False
+    wandb_resume_from: str = None
+    # wandb_resume_from: str = "dkm3uzyd?_step=29"
 
     assert val_interval % log_interval == 0
-
-
