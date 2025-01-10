@@ -8,7 +8,6 @@ Bot available to play against here: https://lichess.org/@/alphaminustwo. No tree
 
 Dataset consists in approx. 350M chess positions (https://www.kaggle.com/datasets/lichess/chess-evaluations) along with stockfish evaluation. The dataset is stored as a CSV as follow:
 
-
 - `fen`: the position FEN contains pieces, active color, castling rights, and en passant square
 - `line`: the principal variation, in UCI format
 - `depth`: the depth reached by the engine
@@ -16,14 +15,11 @@ Dataset consists in approx. 350M chess positions (https://www.kaggle.com/dataset
 - `cp`: the position's centipawn evaluation. This is None if mate is certain
 - `mate`: the position's mate evaluation. This is None if mate is not certain
 
-
- We deduplicate this dataset to 132M unique chess position, and train the network to predict both evaluation and best move. 
+We deduplicate this dataset to 132M unique chess positions, and train the network to predict both evaluation and best move. 
 
 Dataset can be downloaded with `scripts/download.py`.
 
-
 ## Data Processing
-
 
 ### Input
 
@@ -45,7 +41,7 @@ Two cases:
 - Mate is forced, evaluation ranges from `4 / 3` (mate in 15 moves) to `4.` (mate in 1).
 - Mate is not forced, evaluation: `min(centipawn / 1500, 4.)`
 
-Thus, evaluation ranges from `-4.` to `4.`. The mean is `~0.2` and variance is `~1.25`.
+Thus, evaluation ranges from `-4.` to `4.`. Mean value is `~0.2` and variance is `~1.25`.
 
 #### Best move:
 
@@ -102,7 +98,6 @@ Edit `config.yml` to select the engine (see lichess-bot documentation) and run t
 ```
 ALPHAMINUSTWO_CHKP=<path/to/checkpoint> python lichess-bot.py
 ```
-
 
 ## Thanks:
 - lichess.org
