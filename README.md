@@ -21,6 +21,7 @@ Dataset consists in approx. 350M chess positions (https://www.kaggle.com/dataset
 
 Dataset can be downloaded with `scripts/download.py`.
 
+
 ## Data Processing
 
 
@@ -61,11 +62,48 @@ Implementation can be found in `alphaminustwo/model.py`.
 
 ## Baselines:
 
+We Stockfish at depth 1 as a baseline, which 
 
 ## Training:
 
+We train the model for 1 epoch on a RTX-4090, which takes approx. 24h.
+
+We use a MSE loss for the evaluation prediction and a NLL for the best move prediction. We set the loss to `evaluation_loss + 0.5 * move_loss`, so that losses are both losses balanced and the scale in similar to the one from GPT-2 (ln(50257) ~= 10). We use a batch size of `512`, linear warmup for 2000 steps, then cosine annealing until the end of the training.
+
+On the validation dataset, we obtain a loss of `0.21` on evaluation and `1.56` on move prediction.
+
+The curves look like this:
+
+![alt text](wandb.png)
 
 ## Evaluation
+
+We evaluate on lichess.org, playing against human. The model seems to have approx. 1500 Elo in blitz and 1900 in bullet (probably a bit more in 1+0 and less in 1+1)
+
+TODO:
+- evaluate against stockfish at depths 1, 2, 5, etc.
+- evaluate against puzzles like here: https://arxiv.org/abs/2402.04494
+
+
+## Bot
+
+Clone lichess-bot repository:
+```
+git clone https://github.com/lichess-bot-devs/lichess-bot
+cd lichess-bot
+```
+
+In `homemade.py` import the bot:
+```
+from alphaminus.bot import AlphaMinusTwo
+```
+
+Edit `config.yml` to select the engine (see lichess-bot documentation) and run the engine:
+```
+ALPHAMINUSTWO_CHKP=<path/to/checkpoint> python lichess-bot.py
+```
+
+
 
 ## Thanks:
 - lichess.org
