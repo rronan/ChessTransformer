@@ -104,8 +104,9 @@ ALPHAMINUSTWO_CHKP=<path/to/checkpoint> python lichess-bot.py
 ```
 
 
-
 ## Thanks:
 - lichess.org
 - https://github.com/karpathy/nanoGPT
 - https://www.kaggle.com/datasets/lichess/chess-evaluations
+
+See also this paper https://arxiv.org/abs/2402.04494 for a bigger model trained on a bigger dataset, and more.
