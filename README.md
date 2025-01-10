@@ -68,9 +68,9 @@ We Stockfish at depth 1 as a baseline, which
 
 We train the model for 1 epoch on a RTX-4090, which takes approx. 24h.
 
-We use a MSE loss for the evaluation prediction and a NLL for the best move prediction. We set the loss to `evaluation_loss + 0.5 * move_loss`, so that losses are both losses balanced and the scale in similar to the one from GPT-2 (ln(50257) ~= 10). We use a batch size of `512`, linear warmup for 2000 steps, then cosine annealing until the end of the training.
+We use Mean Square Error for evaluation prediction and Negative Log-Likelihood for best move prediction. We set the loss to `evaluation_loss + 0.5 * move_loss`, so that loss scale in similar to the one from GPT-2 (ln(50257) ~= 10). We use a batch size of `512`, linear warmup for 2000 steps and cosine annealing until the end of the training.
 
-On the validation dataset, we obtain a loss of `0.21` on evaluation and `1.56` on move prediction.
+On validation set, we obtain a loss of `0.21` on evaluation and `1.56` on move prediction.
 
 The curves look like this:
 
@@ -78,7 +78,7 @@ The curves look like this:
 
 ## Evaluation
 
-We evaluate on lichess.org, playing against human. The model seems to have approx. 1500 Elo in blitz and 1900 in bullet (probably a bit more in 1+0 and less in 1+1)
+We evaluate on lichess.org, playing against human. The model seems to have approx. 1500 Elo in blitz and 1900 in bullet (probably a bit more in 1+0, a bit less in 1+1)
 
 TODO:
 - evaluate against stockfish at depths 1, 2, 5, etc.
