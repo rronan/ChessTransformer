@@ -99,9 +99,14 @@ Edit `config.yml` to select the engine (see lichess-bot documentation) and run t
 ALPHAMINUSTWO_CHKP=<path/to/checkpoint> python lichess-bot.py
 ```
 
+## Next
+
+- Improve bot with MCTS
+- For MCTS, is kv-cache suitable to increase search? How to adapt it when 1 or more elements change, and not necesseraly at the end of the sequence?
+
 ## Thanks:
 - lichess.org
-- https://github.com/karpathy/nanoGPT
+- https://github.com/karpathy/nanoGPT: for weight initialization and optimizer configuration
 - https://www.kaggle.com/datasets/lichess/chess-evaluations
 
 See also this paper https://arxiv.org/abs/2402.04494 for a bigger model trained on a bigger dataset, and more.
