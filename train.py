@@ -35,8 +35,9 @@ scheduler = get_scheduler(optimizer, train_cfg)
 if len(sys.argv) > 1:
     print("Loading:", sys.argv[1])
     chkp = torch.load(sys.argv[1], weights_only=False)
-    optimizer.load_state_dict(chkp["optimizer"])
     model.load_state_dict(chkp["model"])
+    optimizer.load_state_dict(chkp["optimizer"])
+    scheduler.load_state_dict(chkp["scheduler"])
 if train_cfg.compile:
     model = torch.compile(model)
 
@@ -76,6 +77,7 @@ for step in range(0, train_cfg.max_steps, train_cfg.log_interval):
             save_checkpoint(
                 model=model,
                 optimizer=optimizer,
+                scheduler=scheduler,
                 step=step,
                 log_dir=train_cfg.log_dir,
                 val_loss_accum=loss_accum,

@@ -14,13 +14,15 @@ def init_log(log_dir):
 def save_checkpoint(
     model: nn.Module,
     optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.LRScheduler,
     step: int,
     log_dir: str,
     val_loss_accum: float,
 ):
     checkpoint = {
-        "optimizer": optimizer.state_dict(),
         "model": getattr(model, "_orig_mod", model).state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "scheduler": scheduler.state_dict(),
         "config": model.config,
         "step": step,
         "val_loss": val_loss_accum,
