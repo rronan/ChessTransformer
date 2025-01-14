@@ -8,7 +8,6 @@ from . import config
 
 # https://github.com/lichess-bot-devs/lichess-bot
 from lib.engine_wrapper import MinimalEngine
-from lib.types import HOMEMADE_ARGS_TYPE
 
 """
 Usage:
@@ -36,7 +35,7 @@ class AlphaMinusTwo(MinimalEngine):
         self.model.load_state_dict(chkp["model"])
         self.model.eval()
 
-    def search(self, board: chess.Board, *args: HOMEMADE_ARGS_TYPE) -> PlayResult:
+    def search(self, board: chess.Board, *args) -> PlayResult:
         move_list, eval_list = self.model.generate_from_board([board], legal_move=True)
         print(eval_list[0])
         return PlayResult(move_list[0], None)
