@@ -94,7 +94,7 @@ In `homemade.py` import the bot:
 from alphaminus.bot import AlphaMinusTwo
 ```
 
-Edit `config.yml` to select the engine (see lichess-bot documentation) and run the engine:
+Edit `config.yml` to select the engine (see lichess-bot documentation) and run:
 ```
 ALPHAMINUSTWO_CHKP=<path/to/checkpoint> python lichess-bot.py
 ```
