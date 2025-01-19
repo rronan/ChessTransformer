@@ -102,7 +102,6 @@ ALPHAMINUSTWO_CHKP=<path/to/checkpoint> python lichess-bot.py
 ## Next
 
 - Improve bot with MCTS
-- For MCTS, is kv-cache suitable to increase search? How to adapt it when 1 or more elements change, and not necesseraly at the end of the sequence?
 
 ## Thanks:
 - lichess.org
