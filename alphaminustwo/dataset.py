@@ -1,9 +1,11 @@
 import torch
 from datasets import load_dataset
 from torch.utils.data import DataLoader
+import math
 
 
 def fen2tensor(s: str) -> torch.Tensor:
+    # squares_embedding 64x13
     pieces_char = "PNBRQKpnbrqk"
     pieces_long = torch.tensor([ord(c) for c in pieces_char]).long().unsqueeze(0)
     pos, mov, castle, en_passant = s.split(" ")[:4]
@@ -16,17 +18,20 @@ def fen2tensor(s: str) -> torch.Tensor:
             pos_list.append(pieces_long == ord(c))
     pos_tensor = torch.cat(pos_list, dim=0)
     assert pos_tensor.shape[0] == 64
-    mov_tensor = torch.zeros(64, 1) + int(mov == "w")
-    castle_tensor = torch.zeros(64, 4)
-    for k, v in enumerate("KQkq"):
-        if v in castle:
-            castle_tensor[:, k] = 1
     en_passant_tensor = torch.zeros(64, 1)
     if en_passant != "-":
         letter, number = en_passant
         index = 64 - (ord(letter) - ord("a")) * 8 - int(number)
         en_passant_tensor[index] = 1
-    res = torch.cat([pos_tensor, mov_tensor, castle_tensor, en_passant_tensor], dim=1)
+    squares_embedding = torch.cat([pos_tensor, en_passant_tensor], dim=1)
+    # extra_embedding 1x13
+    mov_tensor = torch.zeros(1, 1) + int(mov == "w")
+    castle_tensor = torch.zeros(1, 4)
+    for k, v in enumerate("KQkq"):
+        if v in castle:
+            castle_tensor[:, k] = 1
+    extra_embedding = torch.cat([mov_tensor, castle_tensor, torch.zeros(1, 8)], dim=1)
+    res = torch.cat([extra_embedding, squares_embedding], dim=0)
     return res
 
 
@@ -35,24 +40,19 @@ def tensor2fen(x: torch.Tensor) -> str:
 
 
 def invert_color(x: torch.Tensor, y: torch.Tensor):
-    raise NotImplementedError
-
-
-def process_mate(m):
-    sign = m / abs(m)
-    scale = abs(m) - 1
-    return sign * max(30, 60 - scale * 2)
+    y = torch.zeros_like(x)
+    y[0, :4] = x[0, 4::-1]
+    y[0, 5] = 1 - y[0, 5]
+    y[1:] = y[-1:0:-1]
+    y[1:, :12] = y[1:, 12::-1]
+    return y
 
 
 def process_evaluation(y):
-    if y["cp"] is not None:
-        res = y["cp"] / 100
-    elif y["mate"] is not None:
-        res = process_mate(y["mate"])
-    else:
-        raise AttributeError
-    scale = 4
-    return scale * list(sorted([-60, res, 60]))[1] / 60.0
+    if y["mate"] is not None:
+        return y["mate"] > 0
+    return 1 + math.exp(-0.00368208 * y["cp"])
+
 
 def move2tensor(s: str):
     squares = []

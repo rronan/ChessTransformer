@@ -64,6 +64,7 @@ class GPT(nn.Module):
         super().__init__()
         self.config = config
         self.weight_loss_move = config.weight_loss_move
+        self.weight_loss_eval = config.weight_loss_eval
         self.block_size = config.block_size
         self.n_embd = config.n_embd
         self.n_layer = config.n_layer
@@ -77,14 +78,14 @@ class GPT(nn.Module):
         )
         # differs from gpt
         self.eval_head = nn.Sequential(
-            nn.Linear(self.n_embd * self.block_size, self.n_embd, bias=config.bias),
+            nn.Linear(self.n_embd, self.n_embd, bias=config.bias),
             nn.GELU(),
             nn.Linear(self.n_embd, 1, bias=config.bias),
         )
         self.move_head = nn.Sequential(
-            nn.Linear(self.n_embd, self.n_embd, bias=config.bias),
+            nn.Linear(self.n_embd * self.block_size, self.n_embd, bias=config.bias),
             nn.GELU(),
-            nn.Linear(self.n_embd, 64, bias=config.bias),
+            nn.Linear(self.n_embd, 64 * 2, bias=config.bias),
         )
         self.apply(self._init_weights)
 
@@ -99,21 +100,20 @@ class GPT(nn.Module):
         for h in self.transformer.h:
             x = h(x)
         x = self.transformer.ln_f(x)
-        x_flat = x.view(-1, self.n_embd * self.block_size)
-        y_eval = self.eval_head(x_flat).view(-1)
-        y_move = self.move_head(x).view(-1, 64**2)
+        y_eval = self.eval_head(x[:, 0]).view(-1)
+        y_move = self.move_head(x[:, 1:]).view(-1, 64**2, self.n_preds)
         loss_eval = None
         if eval is not None:
-            loss_eval = F.mse_loss(y_eval, eval)
+            loss_eval = F.cross_entropy(y_eval, eval)
         loss_move = None
         if move is not None:
             loss_move = F.cross_entropy(y_move, move)
         loss = None
         if loss_eval is not None and loss_move is not None:
-            loss = loss_eval + loss_move * self.weight_loss_move
+            loss = loss_eval * self.weight_loss_eval + loss_move * self.weight_loss_move
         return y_eval, y_move, loss_eval, loss_move, loss
 
-    def generate_from_board(self, board_list:list, legal_move: bool=False):
+    def generate_from_board(self, board_list: list, legal_move: bool = False):
         x_list = [fen2tensor(board.fen()) for board in board_list]
         x = torch.stack(x_list).to(self.device())
         with torch.no_grad():
@@ -123,7 +123,7 @@ class GPT(nn.Module):
                 mask = torch.zeros(64**2)
                 for move in board.legal_moves:
                     mask[move2tensor(move.uci())] = 1
-                logits[i].masked_fill_(mask==0, float('-inf'))
+                logits[i].masked_fill_(mask == 0, float("-inf"))
         index_batch = torch.multinomial(logits.exp(), 1)
         res = []
         for index in index_batch:
@@ -181,7 +181,6 @@ class GPT(nn.Module):
             optim_groups, lr=learning_rate, betas=betas, **extra_args
         )
         print(f"using fused AdamW: {use_fused}")
-
         return optimizer
 
     def device(self):

@@ -5,4 +5,5 @@ tqdm
 torch
 wandb
 stockfish
+chess
 
