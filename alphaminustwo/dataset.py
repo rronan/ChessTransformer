@@ -38,6 +38,25 @@ def invert_color(x: torch.Tensor, y: torch.Tensor):
     raise NotImplementedError
 
 
+def uci2index(s: str):
+    squares = []
+    for k in [0, 1]:
+        letter, number = s[2 * k : 2 * k + 2]
+        index = 64 - (ord(letter) - ord("a")) * 8 - int(number)
+        squares.append(index)
+    res = squares[0] * 64 + squares[1]
+    return res
+
+
+def index2uci(index: int):
+    res = ""
+    for square in [index // 64, index % 64]:
+        i, j = square // 8, square % 8
+        res += list("hgfedcba")[i]
+        res += str(8 - j)
+    return res
+
+
 def process_mate(m):
     sign = m / abs(m)
     scale = abs(m) - 1
@@ -54,19 +73,10 @@ def process_evaluation(y):
     scale = 4
     return scale * list(sorted([-60, res, 60]))[1] / 60.0
 
-def move2tensor(s: str):
-    squares = []
-    for k in [0, 1]:
-        letter, number = s[2 * k : 2 * k + 2]
-        index = 64 - (ord(letter) - ord("a")) * 8 - int(number)
-        squares.append(index)
-    res = squares[0] * 64 + squares[1]
-    return torch.tensor(res)
-
 
 def process_best_move(line):
     best_move = line.split(" ")[0]
-    return move2tensor(best_move)
+    return uci2index(best_move)
 
 
 def collate_fn(x_list):
