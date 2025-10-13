@@ -3,11 +3,12 @@ from datasets import load_dataset
 from torch.utils.data import DataLoader
 import math
 
+PIECES_CHAR = "PNBRQKpnbrqk"
+
 
 def fen2tensor(s: str) -> torch.Tensor:
     # squares_embedding 64x13
-    pieces_char = "PNBRQKpnbrqk"
-    pieces_long = torch.tensor([ord(c) for c in pieces_char]).long().unsqueeze(0)
+    pieces_long = torch.tensor([ord(c) for c in PIECES_CHAR]).long().unsqueeze(0)
     pos, mov, castle, en_passant = s.split(" ")[:4]
     pos = pos.replace("/", "")
     pos_list = []
@@ -35,6 +36,22 @@ def fen2tensor(s: str) -> torch.Tensor:
     return res
 
 
+def tensor2str(x: torch.Tensor):
+    board = x[1:, :12].reshape(8, 8, 12)
+    res = ""
+    for row in board:
+        res += "|"
+        for square in row:
+            piece = " "
+            for piece_index, piece_value in enumerate(square):
+                if piece_value == 1:
+                    piece = PIECES_CHAR[piece_index]
+                    break
+            res += piece
+        res += "|\n"
+    return res
+
+
 def tensor2fen(x: torch.Tensor) -> str:
     raise NotImplementedError
 
@@ -51,17 +68,24 @@ def invert_color(x: torch.Tensor, y: torch.Tensor):
 def process_evaluation(y):
     if y["mate"] is not None:
         return y["mate"] > 0
-    return 1 + math.exp(-0.00368208 * y["cp"])
+    return 1 / (1 + math.exp(-0.00368208 * y["cp"]))
 
 
 def move2tensor(s: str):
     squares = []
     for k in [0, 1]:
         letter, number = s[2 * k : 2 * k + 2]
-        index = 64 - (ord(letter) - ord("a")) * 8 - int(number)
+        index = (ord(letter) - ord("a")) * 8 + int(number) - 1
         squares.append(index)
     res = squares[0] * 64 + squares[1]
     return torch.tensor(res)
+
+
+def extract_evaluation_data(item):
+    fen = item["fen"]
+    first_eval = item["evals"][0]
+    pv = first_eval["pvs"][0]
+    return fen, pv
 
 
 def process_best_move(line):
@@ -70,22 +94,34 @@ def process_best_move(line):
 
 
 def collate_fn(x_list):
-    x = torch.stack([fen2tensor(x["fen"]) for x in x_list])
-    y = torch.tensor([process_evaluation(x) for x in x_list])
-    z = torch.stack([process_best_move(x["line"]) for x in x_list])
+    fens, evaluations, lines = [], [], []
+    for item in x_list:
+        fen, pv = extract_evaluation_data(item)
+        fens.append(fen)
+        evaluations.append(pv)
+        lines.append(pv["line"])
+    x = torch.stack([fen2tensor(fen) for fen in fens])
+    y = torch.tensor([process_evaluation(eval_pv) for eval_pv in evaluations])
+    z = torch.stack([process_best_move(line) for line in lines])
     return x.float(), y.float(), z.long()
 
 
 def collate_fn_fen(x_list):
-    fen_list = [x["fen"] for x in x_list]
-    y = torch.tensor([process_evaluation(x) for x in x_list])
-    z = torch.stack([process_best_move(x["line"]) for x in x_list])
-    return fen_list, y.float(), z.long()
+    fens, evaluations, lines = [], [], []
+    for item in x_list:
+        fen, pv = extract_evaluation_data(item)
+        fens.append(fen)
+        evaluations.append(pv)
+        lines.append(pv["line"])
+
+    y = torch.tensor([process_evaluation(eval_pv) for eval_pv in evaluations])
+    z = torch.stack([process_best_move(line) for line in lines])
+    return fens, y.float(), z.long()
 
 
 def get_train_loader(data_path, bsz, val_size, num_workers=8):
     dataset_train = load_dataset(
-        "csv", data_files=data_path, split=f"train[:-{val_size}]"
+        "json", data_files=data_path, split=f"train[:-{val_size}]"
     )
     train_loader = iter(
         DataLoader(
@@ -101,7 +137,7 @@ def get_train_loader(data_path, bsz, val_size, num_workers=8):
 
 def get_val_loader(data_path, bsz, val_size, num_workers=8, collate_fn=collate_fn):
     dataset_val = load_dataset(
-        "csv", data_files=data_path, split=f"train[-{val_size}:]"
+        "json", data_files=data_path, split=f"train[-{val_size}:]"
     )
     val_loader = DataLoader(
         dataset_val, batch_size=bsz, num_workers=num_workers, collate_fn=collate_fn

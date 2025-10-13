@@ -3,3 +3,4 @@ log
 samples.txt
 alphaminustwo.egg-info/
 alphaminustwo/__pycache__/
+data/
