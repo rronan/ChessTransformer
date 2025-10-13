@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import os
 
 
 @dataclass
@@ -11,16 +10,13 @@ class ModelCFG:
     n_embd: int = 768
     bias: bool = False
     weight_loss_move: float = 1
-    weight_loss_eval: float = 1
+    weight_loss_eval: float = 4 / 0.6931473016738892
 
 
 @dataclass
 class TrainCFG:
-    data_path: str = (
-        os.environ["HOME"]
-        + "/.cache/kagglehub/datasets/lichess/chess-evaluations/versions/3/dedups_evals.csv"
-    )
-    bsz: int = 512  # gpt:480
+    data_path: str = "data/lichess_db_eval.jsonl"
+    bsz: int = 360  # gpt:480
     val_size = 250_000
     val_interval: int = 2000
     compile: bool = True

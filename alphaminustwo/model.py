@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 import chess
 
-from .dataset import uci2index, index2uci, fen2tensor
+from alphaminustwo.dataset import uci2index, index2uci, fen2tensor
 
 
 class SelfAttention(nn.Module):
@@ -83,9 +83,9 @@ class GPT(nn.Module):
             nn.Linear(self.n_embd, 1, bias=config.bias),
         )
         self.move_head = nn.Sequential(
-            nn.Linear(self.n_embd * self.block_size, self.n_embd, bias=config.bias),
+            nn.Linear(self.n_embd * 64, self.n_embd, bias=config.bias),
             nn.GELU(),
-            nn.Linear(self.n_embd, 64 * 2, bias=config.bias),
+            nn.Linear(self.n_embd, 64 * 64, bias=config.bias),
         )
         self.apply(self._init_weights)
 
@@ -95,16 +95,16 @@ class GPT(nn.Module):
         eval: Optional[torch.Tensor] = None,
         move: Optional[torch.Tensor] = None,
     ):
-        p = torch.arange(0, 64, dtype=torch.long, device=x.device)
+        p = torch.arange(0, 65, dtype=torch.long, device=x.device)
         x = self.transformer.wte(x) + self.transformer.wpe(p)
         for h in self.transformer.h:
             x = h(x)
         x = self.transformer.ln_f(x)
-        y_eval = self.eval_head(x[:, 0]).view(-1)
-        y_move = self.move_head(x[:, 1:]).view(-1, 64**2, self.n_preds)
+        y_eval = self.eval_head(x[:, 0]).view(-1) + 0.54
+        y_move = self.move_head(x[:, 1:].view(-1, 64 * self.n_embd)).view(-1, 64 ** 2)
         loss_eval = None
         if eval is not None:
-            loss_eval = F.cross_entropy(y_eval, eval)
+            loss_eval = F.binary_cross_entropy_with_logits(y_eval, eval)
         loss_move = None
         if move is not None:
             loss_move = F.cross_entropy(y_move, move)
@@ -122,7 +122,7 @@ class GPT(nn.Module):
             for i, board in enumerate(board_list):
                 mask = torch.zeros(64**2).to(self.device())
                 for move in board.legal_moves:
-                    mask[move2tensor(move.uci())] = 1
+                    mask[uci2index(move.uci())] = 1
                 logits[i].masked_fill_(mask == 0, float("-inf"))
         index_batch = torch.multinomial(logits.exp(), 1)
         res = [chess.Move.from_uci(index2uci(index.item())) for index in index_batch]
@@ -130,7 +130,7 @@ class GPT(nn.Module):
 
     def _init_weights(self, module):
         """
-        From here: https://github.com/karpathy/nanoGPT/blob/master/model.py
+        From: https://github.com/karpathy/nanoGPT/blob/master/model.py
         """
         if isinstance(module, nn.Linear):
             std = 0.02

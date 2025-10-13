@@ -165,5 +165,9 @@ def get_val_loader(data_path, bsz, val_size, num_workers=8, collate_fn=collate_f
 
 
 class DataStats:
-    var = 1.2523940917372443
-    stockfish_1: 0.6568744778633118
+    mean: float = 0.5421502590179443
+    std: float = 0.24764062464237213
+    var: float = 0.06132587897326425
+    stockfish_1: float = 0.6568744778633118
+    count_pieces: float = 0.29602745175361633
+    bce: float = 0.6931473016738892

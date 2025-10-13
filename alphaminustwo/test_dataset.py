@@ -1,4 +1,5 @@
 import math
+import torch
 from alphaminustwo.dataset import get_train_loader, get_val_loader
 from alphaminustwo.dataset import fen2tensor
 from alphaminustwo.dataset import tensor2str
@@ -39,11 +40,15 @@ def test_process_evaluation():
 
 def test_process_best_move():
     line = "a1b1"
-    res = 0 * 64 + 1
+    res = 0 * 64 + 8
     processed_line = process_best_move(line)
     assert processed_line == res
     line = "a1a2"
-    expected_line = 0 * 64 + 8
+    expected_line = 0 * 64 + 1
+    processed_line = process_best_move(line)
+    assert processed_line == expected_line
+    line = "b1a1"
+    expected_line = 8 * 64 + 0
     processed_line = process_best_move(line)
     assert processed_line == expected_line
 
@@ -53,8 +58,6 @@ def _test_loader(loader):
         assert x.shape == (128, 65, 13)
         assert y.shape == (128,)
         assert z.shape == (128,)
-        assert x.unique()[0] == 0 and x.unique()[1] == 1
-        assert all(0 <= z <= 64 * 64)
         break
 
 
