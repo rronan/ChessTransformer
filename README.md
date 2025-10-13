@@ -4,6 +4,20 @@ A transformer similar to GPT2-124M trained to predict Stockfish evaluation and b
 
 Bot available to play against here: https://lichess.org/@/alphaminustwo. No tree search, just sampling in the predicted move distribution, among legal moves.
 
+## Installation
+
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management. First, install uv:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then install the project dependencies:
+
+```bash
+uv sync
+```
+
 ## Dataset
 
 Dataset consists in approx. 350M chess positions (https://www.kaggle.com/datasets/lichess/chess-evaluations) along with stockfish evaluation. The dataset is stored as a CSV as follow:

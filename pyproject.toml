@@ -5,7 +5,19 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "alphaminustwo"
 version = "1.0.0"
-dependencies = []
+requires-python = "==3.12.*"
+dependencies = [
+    "numpy==1.26.4",
+    "transformers",
+    "datasets",
+    "tqdm",
+    "torch",
+    "wandb",
+    "stockfish",
+    "kagglehub",
+    "pytest",
+    "chess",
+]
 
 [tool.setuptools]
 package-dir = { "" = "." }
