@@ -56,15 +56,6 @@ def tensor2fen(x: torch.Tensor) -> str:
     raise NotImplementedError
 
 
-def invert_color(x: torch.Tensor, y: torch.Tensor):
-    y = torch.zeros_like(x)
-    y[0, :4] = x[0, 4::-1]
-    y[0, 5] = 1 - y[0, 5]
-    y[1:] = y[-1:0:-1]
-    y[1:, :12] = y[1:, 12::-1]
-    return y
-
-
 def uci2index(s: str):
     squares = []
     for k in [0, 1]:
@@ -84,7 +75,6 @@ def index2uci(index: int):
     return res
 
 
-
 def process_evaluation(y):
     if y["mate"] is not None:
         return y["mate"] > 0
@@ -100,12 +90,6 @@ def move2tensor(s: str):
     res = squares[0] * 64 + squares[1]
     return torch.tensor(res)
 
-def extract_evaluation_data(item):
-    fen = item["fen"]
-    first_eval = item["evals"][0]
-    pv = first_eval["pvs"][0]
-    return fen, pv
-
 
 def process_best_move(line):
     best_move = line.split(" ")[0]
@@ -115,7 +99,7 @@ def process_best_move(line):
 def collate_fn(x_list):
     fens, evaluations, lines = [], [], []
     for item in x_list:
-        fen, pv = extract_evaluation_data(item)
+        fen, pv = item["fen"], item["evals"][0]["pvs"][0]
         fens.append(fen)
         evaluations.append(pv)
         lines.append(pv["line"])
@@ -128,7 +112,7 @@ def collate_fn(x_list):
 def collate_fn_fen(x_list):
     fens, evaluations, lines = [], [], []
     for item in x_list:
-        fen, pv = extract_evaluation_data(item)
+        fen, pv = item["fen"], item["evals"][0]["pvs"][0]
         fens.append(fen)
         evaluations.append(pv)
         lines.append(pv["line"])
