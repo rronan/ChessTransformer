@@ -8,11 +8,11 @@ import torch
 from alphaminustwo.model import GPT
 from alphaminustwo.utils import init_log, update_stats_, save_checkpoint
 from alphaminustwo.dataset import get_train_loader, get_val_loader
-from alphaminustwo.config import TrainCFG, ModelCFG
+from alphaminustwo.config import TrainCFG, GPT124M
 from alphaminustwo.schedulers import get_scheduler
 
 train_cfg = TrainCFG()
-model_cfg = ModelCFG()
+model_cfg = GPT124M()
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print("device:", device)

@@ -27,7 +27,7 @@ class AlphaMinusTwo(MinimalEngine):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        model_cfg = config.ModelCFG()
+        model_cfg = config.GPT124M()
         self.model = GPT(model_cfg).to(self.device)
         # temp fix
         sys.modules["config"] = config

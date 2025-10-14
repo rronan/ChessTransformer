@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class ModelCFG:
+class GPT124M:
     block_size: int = 65
     square_dim: int = 13
     n_layer: int = 12
