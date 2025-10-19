@@ -1,11 +1,17 @@
+import pytest
 import math
-import torch
-from alphaminustwo.dataset import get_train_loader, get_val_loader
-from alphaminustwo.dataset import fen2tensor
-from alphaminustwo.dataset import tensor2str
-from alphaminustwo.dataset import process_evaluation
-from alphaminustwo.dataset import process_best_move
+from tqdm import tqdm
+from alphaminustwo.dataset import (
+    get_train_loader,
+    fen2tensor,
+    tensor2str,
+    process_evaluation,
+    process_best_move,
+    get_train_loader_line_augmented,
+    get_val_loader_line_augmented,
+)
 import numpy as np
+import torch
 
 # TODO invert_colors two times and check it is equal
 DATA_PATH = "data/lichess_db_eval.jsonl"
@@ -53,22 +59,88 @@ def test_process_best_move():
     assert processed_line == expected_line
 
 
-def _test_loader(loader):
-    for x, y, z in loader:
-        assert x.shape == (128, 65, 13)
-        assert y.shape == (128,)
-        assert z.shape == (128,)
-        break
+def _test_loader(loader, limit=None) -> int:
+    c = 0
+    for x, y, z in tqdm(loader):
+        if limit is not None and c >= limit:
+            break
+        c += 1
+        bsz = x.shape[0]
+        assert torch.all((x[:, 1:, :-1].sum(-1) >= 0) & (x[:, 1:, :-1].sum(-1) <= 1))
+        assert x.shape == (bsz, 65, 13)
+        assert y.shape == (bsz,)
+        assert z.shape == (bsz,)
+    return c
 
 
-def test_train_loader():
-    train_loader = get_train_loader(DATA_PATH, 128, 100000)
-    _test_loader(train_loader)
+@pytest.mark.parametrize(
+    "bsz,n_max,min_depth,num_workers,shuffle,limit",
+    [
+        (1, 1, None, 0, False, 10),
+        (128, 10, 20, 4, True, 100),
+        (128, None, 20, 1, False, 100),
+        (128, 3, 20, 6, False, None),
+    ],
+)
+def test_line_augmented_train_loader(
+    bsz, n_max, min_depth, num_workers, shuffle, limit
+):
+    train_loader = get_train_loader_line_augmented(
+        DATA_PATH,
+        bsz=bsz,
+        val_size=1,
+        n_max=n_max,
+        min_depth=min_depth,
+        num_workers=num_workers,
+        shuffle=shuffle,
+    )
+    count = _test_loader(train_loader, limit)
+    print(
+        f"{bsz=}, {n_max=}, {min_depth=}, {num_workers=}, {shuffle=}, {limit=}, {count=}"
+    )
 
 
-def test_val_loader():
-    val_loader = get_val_loader(DATA_PATH, 128, 100000)
-    _test_loader(val_loader)
+def test_line_augmented_val_loader(bsz=128, n_max=None, min_depth=20, num_workers=0):
+    val_loader = get_val_loader_line_augmented(
+        DATA_PATH,
+        bsz=bsz,
+        val_size=1,
+        n_max=n_max,
+        min_depth=min_depth,
+        num_workers=num_workers,
+    )
+    _test_loader(val_loader, None)
+
+
+# def test_line_augmented_train_loader_wrt_normal_train_loader():
+#     """
+#     This test allowed us to find illegal fens in the dataset, e.g.:
+#     `r2qk3/2p1p1pr/1p1pPp1p/p1nPb1N1/3B4/2N5/PPP2PPP/R2Q1RK1 b q - 0 1`
+#     """
+#     train_loader = get_train_loader(DATA_PATH, bsz=1, val_size=1, shuffle=False)
+#     line_augmented_train_loader = get_train_loader_line_augmented(
+#         DATA_PATH,
+#         bsz=1,
+#         val_size=1,
+#         n_max=1,
+#         min_depth=None,
+#         num_workers=0,
+#         shuffle=False,
+#     )
+#     MAX_ITER = 1000
+#     c = 0
+#     for (x, y, z), (x_line_augmented, y_line_augmented, z_line_augmented) in tqdm(
+#         zip(train_loader, line_augmented_train_loader), miniters=1
+#     ):
+#         c += 1
+#         if c > MAX_ITER:
+#             break
+#         assert x.shape == x_line_augmented.shape
+#         assert y.shape == y_line_augmented.shape
+#         assert z.shape == z_line_augmented.shape
+#         assert torch.allclose(x, x_line_augmented)
+#         assert torch.allclose(y, y_line_augmented)
+#         assert torch.allclose(z, z_line_augmented)
 
 
 if __name__ == "__main__":

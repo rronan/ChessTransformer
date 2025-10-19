@@ -13,7 +13,9 @@ if __name__ == "__main__":
     for x, y, _ in tqdm(val_loader):
         y_list.append(y)
         baseline_pc_list.append(torch.nn.functional.mse_loss(count_pieces(x), y))
-        baseline_bce_list.append(torch.nn.functional.binary_cross_entropy_with_logits(torch.zeros_like(y), y))
+        baseline_bce_list.append(
+            torch.nn.functional.binary_cross_entropy_with_logits(torch.zeros_like(y), y)
+        )
     y = torch.cat(y_list, dim=0)
     std = y.std().item()
     print("mean:", y.mean().item(), "std:", std, "var:", std**2)
