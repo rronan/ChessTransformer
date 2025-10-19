@@ -183,13 +183,6 @@ class DataStats:
 # LEGACY CODE - TESTING
 
 
-def extract_evaluation_data(item):
-    fen = item["fen"]
-    first_eval = item["evals"][0]
-    pv = first_eval["pvs"][0]
-    return fen, pv
-
-
 def process_best_move(line):
     best_move = line.split(" ")[0]
     return uci2index(best_move)
@@ -198,7 +191,7 @@ def process_best_move(line):
 def collate_fn(x_list):
     fens, evaluations, lines = [], [], []
     for item in x_list:
-        fen, pv = extract_evaluation_data(item)
+        fen, pv = item["fen"], item["evals"][0]["pvs"][0]
         fens.append(fen)
         evaluations.append(pv)
         lines.append(pv["line"])

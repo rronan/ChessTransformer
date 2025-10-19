@@ -8,11 +8,11 @@ import torch
 from alphaminustwo.model import GPT
 from alphaminustwo.utils import init_log, update_stats_, save_checkpoint
 from alphaminustwo.dataset import get_train_loader, get_val_loader
-from alphaminustwo.config import TrainCFG, GPT124M
+from alphaminustwo import config
 from alphaminustwo.schedulers import get_scheduler
 
-train_cfg = TrainCFG()
-model_cfg = GPT124M()
+train_cfg = config.TrainCFG()
+model_cfg = config.GPT124M()
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print("device:", device)
@@ -44,8 +44,7 @@ if train_cfg.compile:
 wandb.login()
 run = wandb.init(
     project="chess_transformer",
-    config=vars(train_cfg) | vars(model_cfg),
-    resume_from=train_cfg.wandb_resume_from,
+    config={"model": vars(model_cfg), "training": vars(train_cfg)},
 )
 if train_cfg.watch_model:
     run.watch(model)
@@ -88,8 +87,9 @@ for step in range(0, train_cfg.max_steps, train_cfg.log_interval):
         x, y, z = next(train_loader)
         x, y, z = x.to(device), y.to(device), z.to(device)
         optimizer.zero_grad()
-        *_, loss_eval, loss_move, loss = model(x, y, z)
-        loss.backward()
+        for j in range(train_cfg.accumulate_grad_steps):
+            *_, loss_eval, loss_move, loss = model(x, y, z)
+            loss.backward()
         norm = torch.nn.utils.clip_grad_norm_(model.parameters(), train_cfg.grad_clip)
         optimizer.step()
         scheduler.step()

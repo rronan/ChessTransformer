@@ -14,9 +14,22 @@ class GPT124M:
 
 
 @dataclass
+class GPT345M:
+    block_size: int = 65
+    square_dim: int = 13
+    n_layer: int = 24
+    n_head: int = 16
+    n_embd: int = 1024
+    bias: bool = False
+    weight_loss_move: float = 1
+    weight_loss_eval: float = 4 / 0.6931473016738892
+
+
+@dataclass
 class TrainCFG:
     data_path: str = "data/lichess_db_eval.jsonl"
-    bsz: int = 360  # gpt:480
+    bsz: int = 90  # gpt:480
+    accumulate_grad_steps: int = 4  # gpt:1
     val_size = 250_000
     val_interval: int = 2000
     compile: bool = True
@@ -37,6 +50,5 @@ class TrainCFG:
     beta1: float = 0.9
     beta2: float = 0.95
     watch_model: bool = False
-    wandb_resume_from: str = None  # "dkm3uzyd?_step=29"
 
     assert val_interval % log_interval == 0
