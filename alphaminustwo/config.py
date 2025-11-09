@@ -13,6 +13,10 @@ class ModelCFG:
     weight_loss_move: float = 0.5
 
 
+# Alias for compatibility
+GPT124M = ModelCFG
+
+
 @dataclass
 class TrainCFG:
     data_path: str = (
