@@ -1,13 +1,14 @@
 import wandb
 import sys
 from collections import defaultdict
-from tqdm import tqdm
+import random
 from tqdm import trange
 import torch
 
 from alphaminustwo.model import GPT
+from alphaminustwo.puzzle import load_puzzles, evaluate_model_on_puzzles
 from alphaminustwo.utils import init_log, update_stats_, save_checkpoint
-from alphaminustwo.dataset import get_train_loader, get_val_loader
+from alphaminustwo.dataset import get_train_loader_line_augmented
 from alphaminustwo import config
 from alphaminustwo.schedulers import get_scheduler
 
@@ -25,8 +26,14 @@ if device == "cuda":
 
 model = GPT(model_cfg).to(device)
 print(sum([x.numel() for x in model.parameters() if x.requires_grad]), "parameters")
-train_loader = get_train_loader(train_cfg.data_path, train_cfg.bsz, train_cfg.val_size)
-val_loader = get_val_loader(train_cfg.data_path, 2 * train_cfg.bsz, train_cfg.val_size)
+train_loader = get_train_loader_line_augmented(
+    data_path=train_cfg.data_path,
+    bsz=train_cfg.bsz,
+    n_max=train_cfg.n_max,
+    min_depth=train_cfg.min_depth,
+    num_workers=train_cfg.num_workers,
+    shuffle=True,
+)
 optimizer = model.configure_optimizers(
     train_cfg.weight_decay, train_cfg.lr, (train_cfg.beta1, train_cfg.beta2), device
 )
@@ -50,41 +57,35 @@ if train_cfg.watch_model:
     run.watch(model)
 log_file = init_log(train_cfg.log_dir)
 
+stats = {}
+puzzles = load_puzzles(train_cfg.puzzle_path)
+current_elo = train_cfg.initial_puzzle_elo
+
 for step in range(0, train_cfg.max_steps, train_cfg.log_interval):
-    if (step % train_cfg.val_interval == 0 and step > 0) or (
-        train_cfg.start_with_eval and step == 0
-    ):
-        model.eval()
-        with torch.no_grad():
-            loss_eval_accum, loss_move_accum, loss_accum = 0, 0, 0
-            running_stats = defaultdict(float)
-            for i, (x, y, z) in enumerate((pbar := tqdm(val_loader))):
-                x, y, z = x.to(device), y.to(device), z.to(device)
-                *_, loss_eval, loss_move, loss = model(x, y, z)
-                stats = {
-                    "val_loss_eval": loss_eval.item(),
-                    "val_loss_move": loss_move.item(),
-                    "val_loss": loss.item(),
-                }
-                running_stats_str = update_stats_(i, running_stats, stats)
-                desc = f"{step:06d} | {running_stats_str}"
-                pbar.set_description(desc)
-        wandb.log(running_stats)
-        with open(log_file, "a") as f:
-            f.write(desc + "\n")
-        if step > 0:
-            save_checkpoint(
-                model=model,
-                optimizer=optimizer,
-                scheduler=scheduler,
-                step=step,
-                log_dir=train_cfg.log_dir,
-                val_loss_accum=loss_accum,
-            )
+    model.eval()
+    with torch.no_grad():
+        puzzle_sample = random.sample(puzzles, train_cfg.n_puzzles)
+        current_elo, result_list = evaluate_model_on_puzzles(
+            model=model,
+            puzzles=puzzle_sample,
+            initial_elo_estimate=current_elo,
+        )
+    wandb.log({"puzzle_elo": current_elo})
+    if step > 0 and step % train_cfg.checkpoint_interval == 0:
+        save_checkpoint(
+            model=model,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            step=step,
+            log_dir=train_cfg.log_dir,
+            current_elo=current_elo,
+            stats=stats,
+        )
     model.train()
     running_stats = defaultdict(float)
+    train_iter = iter(train_loader)
     for i in (pbar := trange(train_cfg.log_interval)):
-        x, y, z = next(train_loader)
+        x, y, z = next(train_iter)
         x, y, z = x.to(device), y.to(device), z.to(device)
         optimizer.zero_grad()
         for j in range(train_cfg.accumulate_grad_steps):
@@ -104,5 +105,3 @@ for step in range(0, train_cfg.max_steps, train_cfg.log_interval):
         desc = f"{step + i + 1:06d} | {running_stats_str}"
         pbar.set_description(desc)
     wandb.log(running_stats)
-    with open(log_file, "a") as f:
-        f.write(desc + "\n")

@@ -140,11 +140,9 @@ class LineAugmentedDataset(IterableDataset):
 
 
 def get_train_loader_line_augmented(
-    data_path, bsz, val_size, n_max, min_depth, num_workers, shuffle
+    data_path, bsz, n_max, min_depth, num_workers, shuffle
 ):
-    dataset_train = load_dataset(
-        "json", data_files=data_path, split=f"train[:-{val_size}]"
-    )
+    dataset_train = load_dataset("json", data_files=data_path, split="train")
     train_loader = DataLoader(
         LineAugmentedDataset(
             dataset_train, n_max=n_max, min_depth=min_depth, shuffle=shuffle
@@ -153,22 +151,6 @@ def get_train_loader_line_augmented(
         num_workers=num_workers,
     )
     return train_loader
-
-
-def get_val_loader_line_augmented(
-    data_path, bsz, val_size, n_max, min_depth, num_workers
-):
-    dataset_val = load_dataset(
-        "json", data_files=data_path, split=f"train[-{val_size}:]"
-    )
-    val_loader = DataLoader(
-        LineAugmentedDataset(
-            dataset_val, n_max=n_max, min_depth=min_depth, shuffle=False
-        ),
-        batch_size=bsz,
-        num_workers=num_workers,
-    )
-    return val_loader
 
 
 class DataStats:
@@ -202,11 +184,9 @@ def collate_fn(x_list):
 
 
 def get_train_loader(
-    data_path, bsz, val_size, num_workers=8, collate_fn=collate_fn, shuffle=True
+    data_path, bsz, num_workers=8, collate_fn=collate_fn, shuffle=True
 ):
-    dataset_train = load_dataset(
-        "json", data_files=data_path, split=f"train[:-{val_size}]"
-    )
+    dataset_train = load_dataset("json", data_files=data_path, split="train")
     train_loader = DataLoader(
         dataset_train,
         batch_size=bsz,
