@@ -19,7 +19,7 @@ from alphaminustwo import config
 from alphaminustwo.schedulers import get_scheduler
 
 train_cfg = config.TrainCFG()
-model_cfg = config.GPT345M()
+model_cfg = config.GPT124M()
 
 device = set_device()
 torch.manual_seed(train_cfg.manual_seed)
@@ -34,7 +34,7 @@ train_loader = get_train_loader_line_augmented(
     n_max=train_cfg.n_max,
     min_depth=train_cfg.min_depth,
     num_workers=train_cfg.num_workers,
-    shuffle=True,
+    shuffle=train_cfg.shuffle,
 )
 optimizer = model.configure_optimizers(
     train_cfg.weight_decay, train_cfg.lr, (train_cfg.beta1, train_cfg.beta2), device
@@ -45,6 +45,7 @@ if len(sys.argv) > 1:
     load_checkpoint(sys.argv[1], model, optimizer, scheduler)
 if train_cfg.compile:
     model = torch.compile(model)
+    print("Model compiled")
 
 wandb.login()
 run = wandb.init(

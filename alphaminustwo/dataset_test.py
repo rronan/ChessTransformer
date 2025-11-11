@@ -1,17 +1,19 @@
 import pytest
 import math
 from tqdm import tqdm
+import sys
+from itertools import islice
 from alphaminustwo.dataset import (
-    get_train_loader,
     fen2tensor,
     tensor2str,
     process_evaluation,
     process_best_move,
     get_train_loader_line_augmented,
-    get_val_loader_line_augmented,
+    get_train_loader,
 )
 import numpy as np
 import torch
+import time
 
 # TODO invert_colors two times and check it is equal
 DATA_PATH = "data/lichess_db_eval.jsonl"
@@ -100,18 +102,6 @@ def test_line_augmented_train_loader(
     )
 
 
-def test_line_augmented_val_loader(bsz=128, n_max=None, min_depth=20, num_workers=0):
-    val_loader = get_val_loader_line_augmented(
-        DATA_PATH,
-        bsz=bsz,
-        val_size=1,
-        n_max=n_max,
-        min_depth=min_depth,
-        num_workers=num_workers,
-    )
-    _test_loader(val_loader, None)
-
-
 # def test_line_augmented_train_loader_wrt_normal_train_loader():
 #     """
 #     This test allowed us to find illegal fens in the dataset, e.g.:
@@ -143,11 +133,55 @@ def test_line_augmented_val_loader(bsz=128, n_max=None, min_depth=20, num_worker
 #         assert torch.allclose(z, z_line_augmented)
 
 
+def speedtest_train_loader(data_path, bsz, num_workers, shuffle, max_iter):
+    print(f"train_loader speed test: {bsz=}, {num_workers=}, {shuffle=}, {max_iter=}")
+    train_loader = get_train_loader(
+        data_path=data_path, bsz=bsz, num_workers=num_workers, shuffle=shuffle
+    )
+    start_time = time.time()
+    for _ in tqdm(islice(train_loader, max_iter), total=max_iter):
+        pass
+    end_time = time.time()
+    print(f"Success: {end_time - start_time} seconds")
+
+
+def speedtest_train_loader_line_augmented(
+    data_path, bsz, n_max, min_depth, shuffle, num_workers, max_iter
+):
+    print(
+        f"train_loader_line_augmented speed test: {bsz=}, {num_workers=}, {n_max=}, {min_depth=}, {max_iter=}, {shuffle=}"
+    )
+    train_loader = get_train_loader_line_augmented(
+        data_path=data_path,
+        bsz=bsz,
+        n_max=n_max,
+        min_depth=min_depth,
+        num_workers=num_workers,
+        shuffle=shuffle,
+    )
+    start_time = time.time()
+    for _ in tqdm(islice(train_loader, max_iter), total=max_iter):
+        pass
+    end_time = time.time()
+    print(f"Success: {end_time - start_time} seconds")
+
+
 if __name__ == "__main__":
-    train_loader = get_train_loader(DATA_PATH, 1, 10)
-    for x, y, z in train_loader:
-        print(x.shape, y.shape, z.shape)
-        print(x)
-        print(y)
-        print(z)
-        break
+    num_workers = 8
+    shuffle = False
+    speedtest_train_loader(
+        data_path="data/lichess_db_eval.jsonl",
+        bsz=480,
+        num_workers=num_workers,
+        shuffle=shuffle,
+        max_iter=100,
+    )
+    speedtest_train_loader_line_augmented(
+        data_path="data/lichess_db_eval.jsonl",
+        bsz=480,
+        n_max=1,
+        min_depth=None,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        max_iter=100,
+    )
