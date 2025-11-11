@@ -12,7 +12,7 @@ from alphaminustwo import config
 from alphaminustwo.schedulers import get_scheduler
 
 train_cfg = config.TrainCFG()
-model_cfg = config.GPT124M()
+model_cfg = config.GPT345M()
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print("device:", device)
@@ -84,12 +84,17 @@ for step in range(0, train_cfg.max_steps, train_cfg.log_interval):
     model.train()
     running_stats = defaultdict(float)
     for i in (pbar := trange(train_cfg.log_interval)):
-        x, y, z = next(train_loader)
-        x, y, z = x.to(device), y.to(device), z.to(device)
         optimizer.zero_grad()
+        loss_eval, loss_move, loss = 0, 0, 0
         for j in range(train_cfg.accumulate_grad_steps):
-            *_, loss_eval, loss_move, loss = model(x, y, z)
-            loss.backward()
+            x, y, z = next(train_loader)  # Load new batch for each accumulation step
+            x, y, z = x.to(device), y.to(device), z.to(device)
+            *_, loss_eval_j, loss_move_j, loss_j = model(x, y, z)
+            loss_j = loss_j / train_cfg.accumulate_grad_steps
+            loss_j.backward()
+            loss_eval += loss_eval_j / train_cfg.accumulate_grad_steps
+            loss_move += loss_move_j / train_cfg.accumulate_grad_steps
+            loss += loss_j
         norm = torch.nn.utils.clip_grad_norm_(model.parameters(), train_cfg.grad_clip)
         optimizer.step()
         scheduler.step()

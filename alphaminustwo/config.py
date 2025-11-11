@@ -28,7 +28,7 @@ class GPT345M:
 @dataclass
 class TrainCFG:
     data_path: str = "data/lichess_db_eval.jsonl"
-    bsz: int = 90  # gpt:480
+    bsz: int = 128  # gpt:480
     accumulate_grad_steps: int = 4  # gpt:1
     val_size = 250_000
     val_interval: int = 2000
