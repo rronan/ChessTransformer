@@ -150,7 +150,7 @@ def get_train_loader_line_augmented(
         batch_size=bsz,
         num_workers=num_workers,
     )
-    return train_loader
+    return iter(train_loader)
 
 
 class DataStats:

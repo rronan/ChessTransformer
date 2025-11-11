@@ -3,12 +3,34 @@ from torch import nn
 import os
 
 
+def set_device():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print("device:", device)
+    torch.set_float32_matmul_precision("high")  # on RTF4090, 40% speedup
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+
+
 def init_log(log_dir):
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, "log.txt")
     with open(log_file, "w") as _:
         pass
     return log_file
+
+
+def load_checkpoint(
+    checkpoint_path: str,
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.LRScheduler,
+):
+    print("Loading:", checkpoint_path)
+    chkp = torch.load(checkpoint_path, weights_only=False)
+    model.load_state_dict(chkp["model"])
+    optimizer.load_state_dict(chkp["optimizer"])
+    scheduler.load_state_dict(chkp["scheduler"])
+    return chkp["step"]
 
 
 def save_checkpoint(

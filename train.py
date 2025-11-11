@@ -7,7 +7,13 @@ import torch
 
 from alphaminustwo.model import GPT
 from alphaminustwo.puzzle import load_puzzles, evaluate_model_on_puzzles
-from alphaminustwo.utils import init_log, update_stats_, save_checkpoint
+from alphaminustwo.utils import (
+    init_log,
+    update_stats_,
+    save_checkpoint,
+    set_device,
+    load_checkpoint,
+)
 from alphaminustwo.dataset import get_train_loader_line_augmented
 from alphaminustwo import config
 from alphaminustwo.schedulers import get_scheduler
@@ -15,11 +21,7 @@ from alphaminustwo.schedulers import get_scheduler
 train_cfg = config.TrainCFG()
 model_cfg = config.GPT124M()
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print("device:", device)
-torch.set_float32_matmul_precision("high")  # on RTF4090, 40% speedup
-torch.backends.cuda.matmul.allow_tf32 = True
-torch.backends.cudnn.allow_tf32 = True
+device = set_device()
 torch.manual_seed(train_cfg.manual_seed)
 if device == "cuda":
     torch.cuda.manual_seed(train_cfg.manual_seed)
@@ -40,11 +42,7 @@ optimizer = model.configure_optimizers(
 scheduler = get_scheduler(optimizer, train_cfg)
 
 if len(sys.argv) > 1:
-    print("Loading:", sys.argv[1])
-    chkp = torch.load(sys.argv[1], weights_only=False)
-    model.load_state_dict(chkp["model"])
-    optimizer.load_state_dict(chkp["optimizer"])
-    scheduler.load_state_dict(chkp["scheduler"])
+    load_checkpoint(sys.argv[1], model, optimizer, scheduler)
 if train_cfg.compile:
     model = torch.compile(model)
 
@@ -53,14 +51,12 @@ run = wandb.init(
     project="chess_transformer",
     config={"model": vars(model_cfg), "training": vars(train_cfg)},
 )
-if train_cfg.watch_model:
-    run.watch(model)
-log_file = init_log(train_cfg.log_dir)
+init_log(train_cfg.log_dir)
 
-stats = {}
 puzzles = load_puzzles(train_cfg.puzzle_path)
 current_elo = train_cfg.initial_puzzle_elo
 
+stats = {}
 for step in range(0, train_cfg.max_steps, train_cfg.log_interval):
     model.eval()
     with torch.no_grad():
@@ -83,9 +79,8 @@ for step in range(0, train_cfg.max_steps, train_cfg.log_interval):
         )
     model.train()
     running_stats = defaultdict(float)
-    train_iter = iter(train_loader)
     for i in (pbar := trange(train_cfg.log_interval)):
-        x, y, z = next(train_iter)
+        x, y, z = next(train_loader)
         x, y, z = x.to(device), y.to(device), z.to(device)
         optimizer.zero_grad()
         for j in range(train_cfg.accumulate_grad_steps):
