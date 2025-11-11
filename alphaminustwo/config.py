@@ -28,10 +28,15 @@ class GPT345M:
 @dataclass
 class TrainCFG:
     data_path: str = "data/lichess_db_eval.jsonl"
-    bsz: int = 128  # gpt:480
+    puzzle_path: str = "data/lichess_db_puzzle.csv"
+    num_workers: int = 0
+    initial_puzzle_elo: float = 170
+    n_puzzles = 1000
+    checkpoint_interval: int = 5000
+    bsz: int = 90  # gpt:480
+    n_max: int = 3
+    min_depth: int = 21
     accumulate_grad_steps: int = 4  # gpt:1
-    val_size = 250_000
-    val_interval: int = 2000
     compile: bool = True
     start_with_eval: bool = True
     log_interval: int = 100

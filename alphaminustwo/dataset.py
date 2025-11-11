@@ -1,7 +1,9 @@
+import logging
 import torch
-from datasets import load_dataset
-from torch.utils.data import DataLoader
+from datasets import load_dataset, Dataset
+from torch.utils.data import DataLoader, IterableDataset, get_worker_info
 import math
+import chess
 
 PIECES_CHAR = "PNBRQKpnbrqk"
 
@@ -36,6 +38,10 @@ def fen2tensor(s: str) -> torch.Tensor:
     return res
 
 
+def tensor2fen(x: torch.Tensor) -> str:
+    raise NotImplementedError
+
+
 def tensor2str(x: torch.Tensor):
     board = x[1:, :12].reshape(8, 8, 12)
     res = ""
@@ -52,8 +58,13 @@ def tensor2str(x: torch.Tensor):
     return res
 
 
-def tensor2fen(x: torch.Tensor) -> str:
-    raise NotImplementedError
+def invert_color(x: torch.Tensor, y: torch.Tensor):
+    y = torch.zeros_like(x)
+    y[0, :4] = x[0, 4::-1]
+    y[0, 5] = 1 - y[0, 5]
+    y[1:] = y[-1:0:-1]
+    y[1:, :12] = y[1:, 12::-1]
+    return y
 
 
 def uci2index(s: str):
@@ -75,20 +86,83 @@ def index2uci(index: int):
     return res
 
 
-def process_evaluation(y):
+def process_evaluation(y: dict) -> float:
     if y["mate"] is not None:
-        return y["mate"] > 0
+        return float(y["mate"] > 0)
     return 1 / (1 + math.exp(-0.00368208 * y["cp"]))
 
 
-def move2tensor(s: str):
-    squares = []
-    for k in [0, 1]:
-        letter, number = s[2 * k : 2 * k + 2]
-        index = (ord(letter) - ord("a")) * 8 + int(number) - 1
-        squares.append(index)
-    res = squares[0] * 64 + squares[1]
-    return torch.tensor(res)
+class LineAugmentedDataset(IterableDataset):
+    def __init__(
+        self,
+        base_dataset: Dataset,
+        n_max: int | None,
+        min_depth: int | None,
+        shuffle: bool,
+    ):
+        self.base_dataset = base_dataset
+        self.n_max = n_max
+        self.min_depth = min_depth
+        self.shuffle = shuffle
+
+    def __iter__(self):
+        ds = self.base_dataset.shuffle() if self.shuffle else self.base_dataset
+        info = get_worker_info()
+        if info is None:
+            worker_id = 0
+            num_workers = 1
+        else:
+            worker_id = info.id
+            num_workers = info.num_workers
+        total_len = len(ds)
+        for idx in range(worker_id, total_len, num_workers):
+            item = ds[idx]
+            first_eval = item["evals"][0]  # deepest eval
+            depth = first_eval["depth"]
+            pv = first_eval["pvs"][0]  # best line
+            y = torch.tensor(process_evaluation(pv)).float()
+            try:
+                board = chess.Board(item["fen"])
+            except Exception as e:
+                logging.warning(f"Error parsing fen: {item['fen']}: {e}")
+                continue
+            for i, move in enumerate(pv["line"].split(" ")[: self.n_max]):
+                if self.min_depth is not None and (depth - i) < self.min_depth:
+                    break
+                x = fen2tensor(board.fen())
+                z = uci2index(move)
+                try:
+                    board.push_uci(move)
+                except chess.IllegalMoveError as e:
+                    logging.warning(f"Illegal move: {move} in {board.fen()}")
+                    continue
+                yield x.float(), y, z.long()
+
+
+def get_train_loader_line_augmented(
+    data_path, bsz, n_max, min_depth, num_workers, shuffle
+):
+    dataset_train = load_dataset("json", data_files=data_path, split="train")
+    train_loader = DataLoader(
+        LineAugmentedDataset(
+            dataset_train, n_max=n_max, min_depth=min_depth, shuffle=shuffle
+        ),
+        batch_size=bsz,
+        num_workers=num_workers,
+    )
+    return iter(train_loader)
+
+
+class DataStats:
+    mean: float = 0.5421502590179443
+    std: float = 0.24764062464237213
+    var: float = 0.06132587897326425
+    stockfish_1: float = 0.6568744778633118
+    count_pieces: float = 0.29602745175361633
+    bce: float = 0.6931473016738892
+
+
+# LEGACY CODE - TESTING
 
 
 def process_best_move(line):
@@ -109,49 +183,15 @@ def collate_fn(x_list):
     return x.float(), y.float(), z.long()
 
 
-def collate_fn_fen(x_list):
-    fens, evaluations, lines = [], [], []
-    for item in x_list:
-        fen, pv = item["fen"], item["evals"][0]["pvs"][0]
-        fens.append(fen)
-        evaluations.append(pv)
-        lines.append(pv["line"])
-
-    y = torch.tensor([process_evaluation(eval_pv) for eval_pv in evaluations])
-    z = torch.stack([process_best_move(line) for line in lines])
-    return fens, y.float(), z.long()
-
-
-def get_train_loader(data_path, bsz, val_size, num_workers=8):
-    dataset_train = load_dataset(
-        "json", data_files=data_path, split=f"train[:-{val_size}]"
-    )
-    train_loader = iter(
-        DataLoader(
-            dataset_train,
-            batch_size=bsz,
-            num_workers=num_workers,
-            shuffle=True,
-            collate_fn=collate_fn,
-        )
+def get_train_loader(
+    data_path, bsz, num_workers=8, collate_fn=collate_fn, shuffle=True
+):
+    dataset_train = load_dataset("json", data_files=data_path, split="train")
+    train_loader = DataLoader(
+        dataset_train,
+        batch_size=bsz,
+        num_workers=num_workers,
+        collate_fn=collate_fn,
+        shuffle=shuffle,
     )
     return train_loader
-
-
-def get_val_loader(data_path, bsz, val_size, num_workers=8, collate_fn=collate_fn):
-    dataset_val = load_dataset(
-        "json", data_files=data_path, split=f"train[-{val_size}:]"
-    )
-    val_loader = DataLoader(
-        dataset_val, batch_size=bsz, num_workers=num_workers, collate_fn=collate_fn
-    )
-    return val_loader
-
-
-class DataStats:
-    mean: float = 0.5421502590179443
-    std: float = 0.24764062464237213
-    var: float = 0.06132587897326425
-    stockfish_1: float = 0.6568744778633118
-    count_pieces: float = 0.29602745175361633
-    bce: float = 0.6931473016738892
