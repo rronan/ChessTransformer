@@ -64,60 +64,78 @@ class GPT(nn.Module):
         super().__init__()
         self.config = config
         self.weight_loss_move = config.weight_loss_move
-        self.weight_loss_eval = config.weight_loss_eval
-        self.block_size = config.block_size
+        self.weight_loss_score = config.weight_loss_score
+        self.extra_embedding = config.extra_embedding
+        self.block_size = 65 if config.extra_embedding else 64
         self.n_embd = config.n_embd
         self.n_layer = config.n_layer
+        self.score_loss = config.score_loss
         self.transformer = nn.ModuleDict(
             dict(
                 wte=nn.Linear(config.square_dim, self.n_embd),
-                wpe=nn.Embedding(config.block_size, self.n_embd),
+                wpe=nn.Embedding(self.block_size, self.n_embd),
                 h=nn.ModuleList([Block(config) for _ in range(self.n_layer)]),
                 ln_f=nn.LayerNorm(self.n_embd, bias=config.bias),
             )
         )
         # differs from gpt
-        self.eval_head = nn.Sequential(
+        self.score_head = nn.Sequential(
             nn.Linear(self.n_embd, self.n_embd, bias=config.bias),
             nn.GELU(),
             nn.Linear(self.n_embd, 1, bias=config.bias),
         )
-        self.move_head = nn.Sequential(
-            nn.Linear(self.n_embd * 64, self.n_embd, bias=config.bias),
-            nn.GELU(),
-            nn.Linear(self.n_embd, 64 * 64, bias=config.bias),
-        )
+        if self.extra_embedding:
+            self.move_head = nn.Sequential(
+                nn.Linear(self.n_embd * 64, self.n_embd, bias=config.bias),
+                nn.GELU(),
+                nn.Linear(self.n_embd, 64 * 64, bias=config.bias),
+            )
+        else:
+            self.move_head = nn.Sequential(
+                nn.Linear(self.n_embd, self.n_embd, bias=config.bias),
+                nn.GELU(),
+                nn.Linear(self.n_embd, 64, bias=config.bias),
+            )
         self.apply(self._init_weights)
 
     def forward(
         self,
         x,
-        eval: Optional[torch.Tensor] = None,
+        score: Optional[torch.Tensor] = None,
         move: Optional[torch.Tensor] = None,
     ):
-        p = torch.arange(0, 65, dtype=torch.long, device=x.device)
+        p = torch.arange(0, self.block_size, dtype=torch.long, device=x.device)
         x = self.transformer.wte(x) + self.transformer.wpe(p)
         for h in self.transformer.h:
             x = h(x)
         x = self.transformer.ln_f(x)
-        y_eval = self.eval_head(x[:, 0]).view(-1) + 0.54
-        y_move = self.move_head(x[:, 1:].view(-1, 64 * self.n_embd)).view(-1, 64 ** 2)
-        loss_eval = None
-        if eval is not None:
-            loss_eval = F.binary_cross_entropy_with_logits(y_eval, eval)
+        y_score = self.score_head(x[:, 0]).view(-1)
+        if self.extra_embedding:
+            y_move = self.move_head(x[:, 1:].view(-1, 64 * self.n_embd)).view(-1, 64**2)
+        else:
+            y_move = self.move_head(x).view(-1, 64**2)
+        loss_score = None
+        if score is not None:
+            if self.score_loss == "bce":
+                y_score = F.sigmoid(y_score)
+                loss_score = F.binary_cross_entropy_with_logits(y_score, score)
+            elif self.score_loss == "mse":
+                loss_score = F.mse_loss(y_score, score)
         loss_move = None
         if move is not None:
             loss_move = F.cross_entropy(y_move, move)
         loss = None
-        if loss_eval is not None and loss_move is not None:
-            loss = loss_eval * self.weight_loss_eval + loss_move * self.weight_loss_move
-        return y_eval, y_move, loss_eval, loss_move, loss
+        if loss_score is not None and loss_move is not None:
+            loss = (
+                loss_score * self.weight_loss_score + loss_move * self.weight_loss_move
+            )
+        return y_score, y_move, loss_score, loss_move, loss
 
     def generate_from_board(self, board_list: list, legal_move: bool = False):
         x_list = [fen2tensor(board.fen()) for board in board_list]
         x = torch.stack(x_list).to(self.device())
         with torch.no_grad():
-            eval, logits, *_ = self.forward(x, None)
+            score, logits, *_ = self.forward(x, None)
         if legal_move:
             for i, board in enumerate(board_list):
                 mask = torch.zeros(64**2).to(self.device())
@@ -126,7 +144,7 @@ class GPT(nn.Module):
                 logits[i].masked_fill_(mask == 0, float("-inf"))
         index_batch = torch.multinomial(logits.exp(), 1)
         res = [chess.Move.from_uci(index2uci(index.item())) for index in index_batch]
-        return res, eval.tolist()
+        return res, score.tolist()
 
     def _init_weights(self, module):
         """

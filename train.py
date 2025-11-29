@@ -34,6 +34,7 @@ train_loader = get_train_loader_line_augmented(
     n_max=train_cfg.n_max,
     min_depth=train_cfg.min_depth,
     num_workers=train_cfg.num_workers,
+    extra_embedding=train_cfg.extra_embedding,
     shuffle=train_cfg.shuffle,
 )
 optimizer = model.configure_optimizers(
@@ -66,6 +67,7 @@ for step in range(0, train_cfg.max_steps, train_cfg.log_interval):
             model=model,
             puzzles=puzzle_sample,
             initial_elo_estimate=current_elo,
+            extra_embedding=train_cfg.extra_embedding,
         )
     wandb.log({"puzzle_elo": current_elo})
     if step > 0 and step % train_cfg.checkpoint_interval == 0:
@@ -76,29 +78,28 @@ for step in range(0, train_cfg.max_steps, train_cfg.log_interval):
             step=step,
             log_dir=train_cfg.log_dir,
             current_elo=current_elo,
-            stats=stats,
         )
     model.train()
     running_stats = defaultdict(float)
     for i in (pbar := trange(train_cfg.log_interval)):
         optimizer.zero_grad()
-        loss_eval, loss_move, loss = 0, 0, 0
+        loss_score, loss_move, loss = 0, 0, 0
         for j in range(train_cfg.accumulate_grad_steps):
             x, y, z = next(train_loader)  # Load new batch for each accumulation step
             x, y, z = x.to(device), y.to(device), z.to(device)
-            *_, loss_eval_j, loss_move_j, loss_j = model(x, y, z)
+            *_, loss_score_j, loss_move_j, loss_j = model(x, y, z)
             loss_j = loss_j / train_cfg.accumulate_grad_steps
             loss_j.backward()
-            loss_eval += loss_eval_j / train_cfg.accumulate_grad_steps
+            loss_score += loss_score_j / train_cfg.accumulate_grad_steps
             loss_move += loss_move_j / train_cfg.accumulate_grad_steps
             loss += loss_j
         norm = torch.nn.utils.clip_grad_norm_(model.parameters(), train_cfg.grad_clip)
         optimizer.step()
         scheduler.step()
         stats = {
-            "train_loss_eval": loss_eval.item(),
-            "train_loss_move": loss_move.item(),
-            "train_loss": loss.item(),
+            "loss_score": loss_score.item(),
+            "loss_move": loss_move.item(),
+            "loss": loss.item(),
             "grad_norm": norm.item(),
             "lr": scheduler.get_last_lr()[0],
         }

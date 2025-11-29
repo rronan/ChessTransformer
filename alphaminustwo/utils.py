@@ -40,7 +40,7 @@ def save_checkpoint(
     scheduler: torch.optim.lr_scheduler.LRScheduler,
     step: int,
     log_dir: str,
-    val_loss_accum: float,
+    current_elo: float,
 ):
     checkpoint = {
         "model": getattr(model, "_orig_mod", model).state_dict(),
@@ -48,7 +48,7 @@ def save_checkpoint(
         "scheduler": scheduler.state_dict(),
         "config": model.config,
         "step": step,
-        "val_loss": val_loss_accum,
+        "current_elo": current_elo,
     }
     torch.save(checkpoint, os.path.join(log_dir, f"model_{step:06d}.pt"))
 

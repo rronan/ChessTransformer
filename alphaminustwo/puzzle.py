@@ -40,13 +40,15 @@ def load_puzzles(csv_path: str, max_puzzles: int | None = None) -> list[dict]:
     return puzzles
 
 
-def evaluate_puzzle(model: GPT, puzzle: dict) -> tuple[bool, list[str]]:
+def evaluate_puzzle(
+    model: GPT, puzzle: dict, extra_embedding: bool
+) -> tuple[bool, list[str]]:
     board = chess.Board(puzzle["fen"])
     moves = puzzle["moves"]
     predicted_moves = []
     for i, expected_move in enumerate(moves):
         if i % 2:
-            x = fen2tensor(board.fen()).unsqueeze(0).to(model.device())
+            x = fen2tensor(board.fen(), extra_embedding).unsqueeze(0).to(model.device())
             with torch.no_grad():
                 _, logits, *_ = model.forward(x, None)
             mask = torch.zeros(64**2).to(model.device())
@@ -69,13 +71,14 @@ def evaluate_model_on_puzzles(
     model: GPT,
     puzzles: list[dict],
     initial_elo_estimate: float,
+    extra_embedding: bool,
 ) -> tuple[float, list[PuzzleResult | None]]:
     model.eval()
     result_list: list[PuzzleResult] = []
     current_elo = initial_elo_estimate
     iterator = tqdm(puzzles, desc=f"Evaluating puzzles (Elo: {current_elo:.0f})")
     for puzzle in iterator:
-        solved, predicted_moves = evaluate_puzzle(model, puzzle)
+        solved, predicted_moves = evaluate_puzzle(model, puzzle, extra_embedding)
         if solved is None:
             continue
         result_list.append(

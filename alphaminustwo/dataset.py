@@ -166,12 +166,13 @@ def get_train_loader_line_augmented(
 
 
 class DataStats:
-    mean: float = 0.5421502590179443
-    std: float = 0.24764062464237213
-    var: float = 0.06132587897326425
-    stockfish_1: float = 0.6568744778633118
-    count_pieces: float = 0.29602745175361633
-    bce: float = 0.6931473016738892
+    count_pieces_loss_bce = 0.6930983066558838
+    count_pieces_loss_mse = 0.07270421087741852
+    stockfish1_loss_bce = 0.5634620189666748
+    stockfish1_loss_mse = 0.016812432557344437
+    y_mean = 0.5949487686157227
+    y_std = 0.2524164021015167
+    y_var = 0.06371404004
 
 
 # LEGACY CODE - TESTING

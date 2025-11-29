@@ -2,36 +2,42 @@ from dataclasses import dataclass
 
 
 @dataclass
+class CommonConfig:
+    extra_embedding: bool = False
+
+
+@dataclass
 class GPT124M:
-    block_size: int = 65
-    square_dim: int = 13
+    square_dim: int = 13 if CommonConfig.extra_embedding else 18
+    extra_embedding: bool = CommonConfig.extra_embedding
     n_layer: int = 12
     n_head: int = 12
     n_embd: int = 768
     bias: bool = False
-    extra_embedding: bool = True
-    weight_loss_move: float = 3
-    weight_loss_eval: float = 0
+    weight_loss_move: float = 1
+    weight_loss_score: float = 4 / 0.6931473016738892
+    score_loss: str = "mse"
     # weight_loss_move: float = 1
-    # weight_loss_eval: float = 4 / 0.6931473016738892
+    # weight_loss_score: float = 4 / 0.6931473016738892
 
 
 @dataclass
 class GPT345M:
-    block_size: int = 65
-    square_dim: int = 13
+    square_dim: int = 13 if CommonConfig.extra_embedding else 18
+    extra_embedding: bool = CommonConfig.extra_embedding
     n_layer: int = 24
     n_head: int = 16
     n_embd: int = 1024
     bias: bool = False
     weight_loss_move: float = 1
-    weight_loss_eval: float = 4 / 0.6931473016738892
+    weight_loss_score: float = 4 / 0.6931473016738892
 
 
 @dataclass
 class TrainCFG:
     data_path: str = "data/lichess_db_eval.jsonl"
     puzzle_path: str = "data/lichess_db_puzzle.csv"
+    extra_embedding: bool = CommonConfig.extra_embedding
     shuffle: bool = True
     num_workers: int = 0
     initial_puzzle_elo: float = 170
@@ -41,7 +47,7 @@ class TrainCFG:
     n_max: int = 0
     min_depth: int = 21
     accumulate_grad_steps: int = 1  # gpt:1
-    compile: bool = True
+    compile: bool = False
     log_interval: int = 100
     log_dir: str = "log"
     max_steps: int = 600_000  # gpt:600_000

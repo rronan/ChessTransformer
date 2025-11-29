@@ -61,15 +61,21 @@ def test_process_best_move():
     assert processed_line == expected_line
 
 
-def _test_loader(loader, limit=None) -> int:
+def _test_loader(loader, extra_embedding: bool, limit: int | None = None) -> int:
     c = 0
     for x, y, z in tqdm(loader):
         if limit is not None and c >= limit:
             break
         c += 1
         bsz = x.shape[0]
-        assert torch.all((x[:, 1:, :-1].sum(-1) >= 0) & (x[:, 1:, :-1].sum(-1) <= 1))
-        assert x.shape == (bsz, 65, 13)
+        if extra_embedding:
+            assert x.shape == (bsz, 65, 13)
+            assert torch.all(
+                (x[:, 1:, :-1].sum(-1) >= 0) & (x[:, 1:, :-1].sum(-1) <= 1)
+            )
+        else:
+            assert x.shape == (bsz, 64, 18)
+            assert torch.all((x[:, :, :12].sum(-1) >= 0) & (x[:, :, :12].sum(-1) <= 1))
         assert y.shape == (bsz,)
         assert z.shape == (bsz,)
     return c
@@ -78,11 +84,11 @@ def _test_loader(loader, limit=None) -> int:
 @pytest.mark.parametrize(
     "bsz,n_max,min_depth,num_workers,shuffle,limit,extra_embedding",
     [
+        (1, 1, None, 0, False, 10, False),
         (1, 1, None, 0, False, 10, True),
         (128, 10, 20, 4, True, 100, True),
         (128, None, 20, 1, False, 100, True),
         (128, 3, 20, 6, False, None, True),
-        (128, 3, 20, 6, False, None, False),
     ],
 )
 def test_line_augmented_train_loader(
@@ -91,16 +97,15 @@ def test_line_augmented_train_loader(
     train_loader = get_train_loader_line_augmented(
         DATA_PATH,
         bsz=bsz,
-        val_size=1,
         n_max=n_max,
         min_depth=min_depth,
         num_workers=num_workers,
         extra_embedding=extra_embedding,
         shuffle=shuffle,
     )
-    count = _test_loader(train_loader, limit)
+    count = _test_loader(train_loader, extra_embedding=extra_embedding, limit=limit)
     print(
-        f"{bsz=}, {n_max=}, {min_depth=}, {num_workers=}, {shuffle=}, {limit=}, {count=}"
+        f"{bsz=}, {n_max=}, {min_depth=}, {num_workers=}, {shuffle=}, {limit=}, {extra_embedding=}, {count=}"
     )
 
 
@@ -109,11 +114,10 @@ def test_line_augmented_train_loader(
 #     This test allowed us to find illegal fens in the dataset, e.g.:
 #     `r2qk3/2p1p1pr/1p1pPp1p/p1nPb1N1/3B4/2N5/PPP2PPP/R2Q1RK1 b q - 0 1`
 #     """
-#     train_loader = get_train_loader(DATA_PATH, bsz=1, val_size=1, shuffle=False)
+#     train_loader = get_train_loader(DATA_PATH, bsz=1, shuffle=False)
 #     line_augmented_train_loader = get_train_loader_line_augmented(
 #         DATA_PATH,
 #         bsz=1,
-#         val_size=1,
 #         n_max=1,
 #         min_depth=None,
 #         num_workers=0,
