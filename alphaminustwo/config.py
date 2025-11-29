@@ -9,8 +9,11 @@ class GPT124M:
     n_head: int = 12
     n_embd: int = 768
     bias: bool = False
-    weight_loss_move: float = 1
-    weight_loss_eval: float = 4 / 0.6931473016738892
+    extra_embedding: bool = True
+    weight_loss_move: float = 3
+    weight_loss_eval: float = 0
+    # weight_loss_move: float = 1
+    # weight_loss_eval: float = 4 / 0.6931473016738892
 
 
 @dataclass
@@ -55,5 +58,3 @@ class TrainCFG:
     beta1: float = 0.9
     beta2: float = 0.95
     watch_model: bool = False
-
-    assert val_interval % log_interval == 0

@@ -8,7 +8,6 @@ from alphaminustwo.dataset import (
     process_evaluation,
     process_best_move,
     get_train_loader_line_augmented,
-    get_val_loader_line_augmented,
 )
 import numpy as np
 import torch
@@ -74,16 +73,17 @@ def _test_loader(loader, limit=None) -> int:
 
 
 @pytest.mark.parametrize(
-    "bsz,n_max,min_depth,num_workers,shuffle,limit",
+    "bsz,n_max,min_depth,num_workers,shuffle,limit,extra_embedding",
     [
-        (1, 1, None, 0, False, 10),
-        (128, 10, 20, 4, True, 100),
-        (128, None, 20, 1, False, 100),
-        (128, 3, 20, 6, False, None),
+        (1, 1, None, 0, False, 10, True),
+        (128, 10, 20, 4, True, 100, True),
+        (128, None, 20, 1, False, 100, True),
+        (128, 3, 20, 6, False, None, True),
+        (128, 3, 20, 6, False, None, False),
     ],
 )
 def test_line_augmented_train_loader(
-    bsz, n_max, min_depth, num_workers, shuffle, limit
+    bsz, n_max, min_depth, num_workers, shuffle, limit, extra_embedding
 ):
     train_loader = get_train_loader_line_augmented(
         DATA_PATH,
@@ -92,24 +92,13 @@ def test_line_augmented_train_loader(
         n_max=n_max,
         min_depth=min_depth,
         num_workers=num_workers,
+        extra_embedding=extra_embedding,
         shuffle=shuffle,
     )
     count = _test_loader(train_loader, limit)
     print(
         f"{bsz=}, {n_max=}, {min_depth=}, {num_workers=}, {shuffle=}, {limit=}, {count=}"
     )
-
-
-def test_line_augmented_val_loader(bsz=128, n_max=None, min_depth=20, num_workers=0):
-    val_loader = get_val_loader_line_augmented(
-        DATA_PATH,
-        bsz=bsz,
-        val_size=1,
-        n_max=n_max,
-        min_depth=min_depth,
-        num_workers=num_workers,
-    )
-    _test_loader(val_loader, None)
 
 
 # def test_line_augmented_train_loader_wrt_normal_train_loader():

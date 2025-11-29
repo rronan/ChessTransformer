@@ -8,7 +8,7 @@ import chess
 PIECES_CHAR = "PNBRQKpnbrqk"
 
 
-def fen2tensor(s: str) -> torch.Tensor:
+def fen2tensor(s: str, extra_embedding: bool = True) -> torch.Tensor:
     # squares_embedding 64x13
     pieces_long = torch.tensor([ord(c) for c in PIECES_CHAR]).long().unsqueeze(0)
     pos, mov, castle, en_passant = s.split(" ")[:4]
@@ -33,8 +33,13 @@ def fen2tensor(s: str) -> torch.Tensor:
     for k, v in enumerate("KQkq"):
         if v in castle:
             castle_tensor[:, k] = 1
-    extra_embedding = torch.cat([mov_tensor, castle_tensor, torch.zeros(1, 8)], dim=1)
-    res = torch.cat([extra_embedding, squares_embedding], dim=0)
+    game_embedding = torch.cat([mov_tensor, castle_tensor], dim=1)
+    if extra_embedding:
+        e = torch.cat([game_embedding, torch.zeros(1, 8)], dim=1)
+        res = torch.cat([e, squares_embedding], dim=0)
+    else:
+        e = game_embedding.expand(64, -1)
+        res = torch.cat([squares_embedding, e], dim=1)
     return res
 
 
@@ -98,11 +103,13 @@ class LineAugmentedDataset(IterableDataset):
         base_dataset: Dataset,
         n_max: int | None,
         min_depth: int | None,
+        extra_embedding: bool,
         shuffle: bool,
     ):
         self.base_dataset = base_dataset
         self.n_max = n_max
         self.min_depth = min_depth
+        self.extra_embedding = extra_embedding
         self.shuffle = shuffle
 
     def __iter__(self):
@@ -140,12 +147,16 @@ class LineAugmentedDataset(IterableDataset):
 
 
 def get_train_loader_line_augmented(
-    data_path, bsz, n_max, min_depth, num_workers, shuffle
+    data_path, bsz, n_max, min_depth, extra_embedding, num_workers, shuffle
 ):
     dataset_train = load_dataset("json", data_files=data_path, split="train")
     train_loader = DataLoader(
         LineAugmentedDataset(
-            dataset_train, n_max=n_max, min_depth=min_depth, shuffle=shuffle
+            dataset_train,
+            n_max=n_max,
+            min_depth=min_depth,
+            extra_embedding=extra_embedding,
+            shuffle=shuffle,
         ),
         batch_size=bsz,
         num_workers=num_workers,
