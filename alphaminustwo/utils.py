@@ -9,6 +9,7 @@ def set_device():
     torch.set_float32_matmul_precision("high")  # on RTF4090, 40% speedup
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
+    return device
 
 
 def init_log(log_dir):

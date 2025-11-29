@@ -1,0 +1,22 @@
+
+(base) ➜  chess_transformer git:(main) ✗ CUDA_VISIBLE_DEVICES= python inference.py --chkp log/model_054000.pt --fen "2kr4/1pp3pp/p1p5/4P3/1N3P2/8/5P1P/1K5R b - - 0 25"
+device: cpu
+123462147 parameters
+0.3169465661048889
+32
+36
+['d8d4']
+
+
+(base) ➜  chess_transformer git:(main) ✗ CUDA_VISIBLE_DEVICES= python inference.py --chkp log/model_054000.pt --fen "2qqq1rk/8/6Q1/8/8/8/8/K7 w - - 0 1"
+device: cpu
+123462147 parameters
+4.576255798339844
+['g6h6']
+
+
+(base) ➜  chess_transformer git:(main) ✗ CUDA_VISIBLE_DEVICES= python inference.py --chkp log/model_054000.pt --fen "r1bq1rk1/p4pp1/p2p1b1p/8/2P1PB2/P4N2/4B1PP/R2Q1R1K b - - 0 21"
+device: cpu
+123462147 parameters
+0.3464963734149933
+['f6a1']

@@ -104,16 +104,13 @@ class LineAugmentedDataset(IterableDataset):
         n_max: int | None,
         min_depth: int | None,
         extra_embedding: bool,
-        shuffle: bool,
     ):
         self.base_dataset = base_dataset
-        self.n_max = n_max
+        self.n_max = max(n_max, 1)
         self.min_depth = min_depth
         self.extra_embedding = extra_embedding
-        self.shuffle = shuffle
 
     def __iter__(self):
-        ds = self.base_dataset.shuffle() if self.shuffle else self.base_dataset
         info = get_worker_info()
         if info is None:
             worker_id = 0
@@ -121,9 +118,10 @@ class LineAugmentedDataset(IterableDataset):
         else:
             worker_id = info.id
             num_workers = info.num_workers
-        total_len = len(ds)
-        for idx in range(worker_id, total_len, num_workers):
-            item = ds[idx]
+        for idx, item in enumerate(self.base_dataset):
+            # Skip items that don't belong to this worker
+            if idx % num_workers != worker_id:
+                continue
             first_eval = item["evals"][0]  # deepest eval
             depth = first_eval["depth"]
             pv = first_eval["pvs"][0]  # best line
@@ -131,17 +129,17 @@ class LineAugmentedDataset(IterableDataset):
             try:
                 board = chess.Board(item["fen"])
             except Exception as e:
-                logging.warning(f"Error parsing fen: {item['fen']}: {e}")
+                logging.debug(f"Error parsing fen: {item['fen']}: {e}")
                 continue
             for i, move in enumerate(pv["line"].split(" ")[: self.n_max]):
                 if self.min_depth is not None and (depth - i) < self.min_depth:
                     break
-                x = fen2tensor(board.fen())
+                x = fen2tensor(board.fen(), self.extra_embedding)
                 z = uci2index(move)
                 try:
                     board.push_uci(move)
                 except chess.IllegalMoveError as e:
-                    logging.warning(f"Illegal move: {move} in {board.fen()}")
+                    logging.debug(f"Illegal move: {move} in {board.fen()}")
                     continue
                 yield x.float(), y, z.long()
 
@@ -149,17 +147,20 @@ class LineAugmentedDataset(IterableDataset):
 def get_train_loader_line_augmented(
     data_path, bsz, n_max, min_depth, extra_embedding, num_workers, shuffle
 ):
-    dataset_train = load_dataset("json", data_files=data_path, split="train")
+    assert not (num_workers > 0 and shuffle)
+    dataset_train = load_dataset(
+        "json", data_files=data_path, split="train", streaming=num_workers == 0
+    )
+    if shuffle:
+        dataset_train = dataset_train.shuffle(buffer_size=10000)
     train_loader = DataLoader(
         LineAugmentedDataset(
             dataset_train,
             n_max=n_max,
             min_depth=min_depth,
             extra_embedding=extra_embedding,
-            shuffle=shuffle,
         ),
         batch_size=bsz,
-        num_workers=num_workers,
     )
     return iter(train_loader)
 
@@ -194,9 +195,7 @@ def collate_fn(x_list):
     return x.float(), y.float(), z.long()
 
 
-def get_train_loader(
-    data_path, bsz, num_workers=8, collate_fn=collate_fn, shuffle=True
-):
+def get_train_loader(data_path, bsz, num_workers, shuffle, collate_fn=collate_fn):
     dataset_train = load_dataset("json", data_files=data_path, split="train")
     train_loader = DataLoader(
         dataset_train,

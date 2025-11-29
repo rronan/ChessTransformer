@@ -34,7 +34,7 @@ train_loader = get_train_loader_line_augmented(
     n_max=train_cfg.n_max,
     min_depth=train_cfg.min_depth,
     num_workers=train_cfg.num_workers,
-    shuffle=True,
+    shuffle=train_cfg.shuffle,
 )
 optimizer = model.configure_optimizers(
     train_cfg.weight_decay, train_cfg.lr, (train_cfg.beta1, train_cfg.beta2), device
@@ -45,6 +45,7 @@ if len(sys.argv) > 1:
     load_checkpoint(sys.argv[1], model, optimizer, scheduler)
 if train_cfg.compile:
     model = torch.compile(model)
+    print("Model compiled")
 
 wandb.login()
 run = wandb.init(
@@ -80,12 +81,17 @@ for step in range(0, train_cfg.max_steps, train_cfg.log_interval):
     model.train()
     running_stats = defaultdict(float)
     for i in (pbar := trange(train_cfg.log_interval)):
-        x, y, z = next(train_loader)
-        x, y, z = x.to(device), y.to(device), z.to(device)
         optimizer.zero_grad()
+        loss_eval, loss_move, loss = 0, 0, 0
         for j in range(train_cfg.accumulate_grad_steps):
-            *_, loss_eval, loss_move, loss = model(x, y, z)
-            loss.backward()
+            x, y, z = next(train_loader)  # Load new batch for each accumulation step
+            x, y, z = x.to(device), y.to(device), z.to(device)
+            *_, loss_eval_j, loss_move_j, loss_j = model(x, y, z)
+            loss_j = loss_j / train_cfg.accumulate_grad_steps
+            loss_j.backward()
+            loss_eval += loss_eval_j / train_cfg.accumulate_grad_steps
+            loss_move += loss_move_j / train_cfg.accumulate_grad_steps
+            loss += loss_j
         norm = torch.nn.utils.clip_grad_norm_(model.parameters(), train_cfg.grad_clip)
         optimizer.step()
         scheduler.step()
