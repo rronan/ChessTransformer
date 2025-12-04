@@ -102,9 +102,8 @@ for step in range(init_step, train_cfg.max_steps, train_cfg.log_interval):
             "loss": loss.item(),
             "grad_norm": norm.item(),
             "lr": scheduler.get_last_lr()[0],
-            "step": step,
         }
         running_stats_str = update_stats_(i, running_stats, stats)
         desc = f"{step + i + 1:06d} | {running_stats_str}"
         pbar.set_description(desc)
-    wandb.log(running_stats)
+    wandb.log({"step": step, **running_stats})

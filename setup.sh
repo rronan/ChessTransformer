@@ -5,6 +5,8 @@
 
 uv sync
 
+mkdir -p data
+
 wget https://database.lichess.org/lichess_db_eval.jsonl.zst
 zstd -d lichess_db_eval.jsonl.zst -o data/lichess_db_eval.jsonl
 
