@@ -120,10 +120,9 @@ class GPT(nn.Module):
             y_move = self.move_head(x).view(-1, 64**2)
         loss_score = None
         if score is not None:
-            if self.score_loss == "bce":
-                loss_score = F.binary_cross_entropy_with_logits(y_score, score)
-            elif self.score_loss == "mse":
-                loss_score = F.mse_loss(y_score, score)
+            bce_score = F.binary_cross_entropy_with_logits(y_score, score)
+            entropy = F.binary_cross_entropy(score, score)
+            loss_score = bce_score - entropy
         loss_move = None
         if move is not None:
             loss_move = F.cross_entropy(y_move, move)

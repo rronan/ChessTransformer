@@ -15,10 +15,7 @@ class GPT124M:
     n_embd: int = 768
     bias: bool = False
     weight_loss_move: float = 1
-    weight_loss_score: float = 3
-    score_loss: str = "bce"
-    # weight_loss_move: float = 1
-    # weight_loss_score: float = 4 / 0.6931473016738892
+    weight_loss_score: float = 4
 
 
 @dataclass
