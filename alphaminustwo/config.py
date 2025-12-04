@@ -47,7 +47,7 @@ class TrainCFG:
     n_max: int = 0
     min_depth: int = 21
     accumulate_grad_steps: int = 1  # gpt:1
-    compile: bool = False
+    compile: bool = True
     log_interval: int = 100
     log_dir: str = "log"
     max_steps: int = 600_000  # gpt:600_000

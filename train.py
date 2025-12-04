@@ -69,7 +69,7 @@ for step in range(init_step, train_cfg.max_steps, train_cfg.log_interval):
             initial_elo_estimate=current_elo,
             extra_embedding=train_cfg.extra_embedding,
         )
-    wandb.log({"puzzle_elo": current_elo})
+    wandb.log({"puzzle_elo": current_elo, "step": step})
     if step > 0 and step % train_cfg.checkpoint_interval == 0:
         save_checkpoint(
             model=model,
@@ -102,6 +102,7 @@ for step in range(init_step, train_cfg.max_steps, train_cfg.log_interval):
             "loss": loss.item(),
             "grad_norm": norm.item(),
             "lr": scheduler.get_last_lr()[0],
+            "step": step,
         }
         running_stats_str = update_stats_(i, running_stats, stats)
         desc = f"{step + i + 1:06d} | {running_stats_str}"
