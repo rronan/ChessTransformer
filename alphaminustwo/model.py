@@ -89,7 +89,11 @@ class GPT(nn.Module):
             nn.Linear(self.n_embd, 1, bias=config.bias),
         )
         self.move_head = nn.Sequential(
-            nn.Linear(self.n_embd * 64, self.n_embd, bias=config.bias),
+            nn.Linear(
+                self.n_embd * (64 if self.extra_embedding else 1),
+                self.n_embd,
+                bias=config.bias,
+            ),
             nn.GELU(),
             nn.Linear(
                 self.n_embd, 64 * (64 if self.extra_embedding else 1), bias=config.bias

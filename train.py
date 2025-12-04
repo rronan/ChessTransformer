@@ -23,7 +23,7 @@ train_cfg = config.TrainCFG()
 model_cfg = config.GPT124M()
 
 device = set_device()
-set_seed()
+set_seed(device)
 
 model = GPT(model_cfg).to(device)
 print(sum([x.numel() for x in model.parameters() if x.requires_grad]), "parameters")

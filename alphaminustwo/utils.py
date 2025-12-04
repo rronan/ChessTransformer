@@ -1,15 +1,16 @@
 import torch
+import random
 from torch import nn
 import os
 
 MANUAL_SEED = 1
 
 
-def set_seed():
-    device = set_device()
+def set_seed(device: str):
     torch.manual_seed(MANUAL_SEED)
     if device == "cuda":
         torch.cuda.manual_seed(MANUAL_SEED)
+    random.seed(MANUAL_SEED)
 
 
 def set_device():
