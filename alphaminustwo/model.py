@@ -79,36 +79,22 @@ class GPT(nn.Module):
             )
         )
         # differs from gpt
-        if self.extra_embedding:
-            self.score_head = nn.Sequential(
-                nn.Linear(self.n_embd, self.n_embd, bias=config.bias),
-                nn.GELU(),
-                nn.Linear(self.n_embd, self.n_embd, bias=config.bias),
-                nn.GELU(),
-                nn.Linear(self.n_embd, 1, bias=config.bias),
-            )
-            self.move_head = nn.Sequential(
-                nn.Linear(self.n_embd * 64, self.n_embd, bias=config.bias),
-                nn.GELU(),
-                nn.Linear(self.n_embd, self.n_embd, bias=config.bias),
-                nn.GELU(),
-                nn.Linear(self.n_embd, 64 * 64, bias=config.bias),
-            )
-        else:
-            self.score_head = nn.Sequential(
-                nn.Linear(self.n_embd * 64, self.n_embd, bias=config.bias),
-                nn.GELU(),
-                nn.Linear(self.n_embd, self.n_embd, bias=config.bias),
-                nn.GELU(),
-                nn.Linear(self.n_embd, 1, bias=config.bias),
-            )
-            self.move_head = nn.Sequential(
-                nn.Linear(self.n_embd, self.n_embd, bias=config.bias),
-                nn.GELU(),
-                nn.Linear(self.n_embd, self.n_embd, bias=config.bias),
-                nn.GELU(),
-                nn.Linear(self.n_embd, 64, bias=config.bias),
-            )
+        self.score_head = nn.Sequential(
+            nn.Linear(
+                self.n_embd * (1 if self.extra_embedding else 64),
+                self.n_embd,
+                bias=config.bias,
+            ),
+            nn.GELU(),
+            nn.Linear(self.n_embd, 1, bias=config.bias),
+        )
+        self.move_head = nn.Sequential(
+            nn.Linear(self.n_embd * 64, self.n_embd, bias=config.bias),
+            nn.GELU(),
+            nn.Linear(
+                self.n_embd, 64 * (64 if self.extra_embedding else 1), bias=config.bias
+            ),
+        )
         self.apply(self._init_weights)
 
     def forward(
@@ -124,11 +110,9 @@ class GPT(nn.Module):
         x = self.transformer.ln_f(x)
         if self.extra_embedding:
             y_score = self.score_head(x[:, 0]).view(-1)
-        else:
-            y_score = self.score_head(x.view(-1, 64 * self.n_embd)).view(-1)
-        if self.extra_embedding:
             y_move = self.move_head(x[:, 1:].view(-1, 64 * self.n_embd)).view(-1, 64**2)
         else:
+            y_score = self.score_head(x.view(-1, 64 * self.n_embd)).view(-1)
             y_move = self.move_head(x).view(-1, 64**2)
         loss_score = None
         if score is not None:
