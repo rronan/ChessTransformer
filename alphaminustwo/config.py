@@ -15,8 +15,8 @@ class GPT124M:
     n_embd: int = 768
     bias: bool = False
     weight_loss_move: float = 1
-    weight_loss_score: float = 4 / 0.6931473016738892
-    score_loss: str = "mse"
+    weight_loss_score: float = 3
+    score_loss: str = "bce"
     # weight_loss_move: float = 1
     # weight_loss_score: float = 4 / 0.6931473016738892
 
@@ -30,7 +30,7 @@ class GPT345M:
     n_embd: int = 1024
     bias: bool = False
     weight_loss_move: float = 1
-    weight_loss_score: float = 4 / 0.6931473016738892
+    weight_loss_score: float = 3
 
 
 @dataclass
@@ -52,7 +52,6 @@ class TrainCFG:
     log_dir: str = "log"
     max_steps: int = 600_000  # gpt:600_000
     grad_clip: float = 1.0
-    manual_seed = 1
     weight_decay: float = 0.1
     lr: float = 6e-4
     lr_scheduler: str = "gpt2"
@@ -62,6 +61,5 @@ class TrainCFG:
     cosine_annealing_iters: int = 600_000
     beta1: float = 0.9
     beta2: float = 0.95
-    watch_model: bool = False
 
     assert checkpoint_interval % log_interval == 0

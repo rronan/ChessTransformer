@@ -117,7 +117,6 @@ class GPT(nn.Module):
         loss_score = None
         if score is not None:
             if self.score_loss == "bce":
-                y_score = F.sigmoid(y_score)
                 loss_score = F.binary_cross_entropy_with_logits(y_score, score)
             elif self.score_loss == "mse":
                 loss_score = F.mse_loss(y_score, score)
@@ -132,7 +131,10 @@ class GPT(nn.Module):
         return y_score, y_move, loss_score, loss_move, loss
 
     def generate_from_board(self, board_list: list, legal_move: bool = False):
-        x_list = [fen2tensor(board.fen()) for board in board_list]
+        x_list = [
+            fen2tensor(board.fen(), extra_embedding=self.extra_embedding)
+            for board in board_list
+        ]
         x = torch.stack(x_list).to(self.device())
         with torch.no_grad():
             score, logits, *_ = self.forward(x, None)

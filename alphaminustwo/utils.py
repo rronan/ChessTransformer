@@ -2,6 +2,15 @@ import torch
 from torch import nn
 import os
 
+MANUAL_SEED = 1
+
+
+def set_seed():
+    device = set_device()
+    torch.manual_seed(MANUAL_SEED)
+    if device == "cuda":
+        torch.cuda.manual_seed(MANUAL_SEED)
+
 
 def set_device():
     device = "cuda" if torch.cuda.is_available() else "cpu"

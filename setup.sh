@@ -1,5 +1,7 @@
 
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# If uv not installed: 
+# curl -LsSf https://astral.sh/uv/install.sh | sh
+# then add vu to PATH
 
 uv sync
 

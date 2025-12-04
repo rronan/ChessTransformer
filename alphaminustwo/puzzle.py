@@ -9,7 +9,7 @@ from tqdm import tqdm
 from alphaminustwo.model import GPT
 from alphaminustwo.dataset import fen2tensor, uci2index, index2uci
 
-K = 10
+K = 1
 
 
 class PuzzleResult(BaseModel):

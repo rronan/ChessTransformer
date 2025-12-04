@@ -13,6 +13,7 @@ from alphaminustwo.utils import (
     save_checkpoint,
     set_device,
     load_checkpoint,
+    set_seed,
 )
 from alphaminustwo.dataset import get_train_loader_line_augmented
 from alphaminustwo import config
@@ -22,9 +23,7 @@ train_cfg = config.TrainCFG()
 model_cfg = config.GPT124M()
 
 device = set_device()
-torch.manual_seed(train_cfg.manual_seed)
-if device == "cuda":
-    torch.cuda.manual_seed(train_cfg.manual_seed)
+set_seed()
 
 model = GPT(model_cfg).to(device)
 print(sum([x.numel() for x in model.parameters() if x.requires_grad]), "parameters")
@@ -42,8 +41,9 @@ optimizer = model.configure_optimizers(
 )
 scheduler = get_scheduler(optimizer, train_cfg)
 
+init_step = 0
 if len(sys.argv) > 1:
-    load_checkpoint(sys.argv[1], model, optimizer, scheduler)
+    init_step = load_checkpoint(sys.argv[1], model, optimizer, scheduler)
 if train_cfg.compile:
     model = torch.compile(model)
     print("Model compiled")
@@ -59,7 +59,7 @@ puzzles = load_puzzles(train_cfg.puzzle_path)
 current_elo = train_cfg.initial_puzzle_elo
 
 stats = {}
-for step in range(0, train_cfg.max_steps, train_cfg.log_interval):
+for step in range(init_step, train_cfg.max_steps, train_cfg.log_interval):
     model.eval()
     with torch.no_grad():
         puzzle_sample = random.sample(puzzles, train_cfg.n_puzzles)
