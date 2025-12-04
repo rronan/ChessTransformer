@@ -69,7 +69,6 @@ class GPT(nn.Module):
         self.block_size = 65 if config.extra_embedding else 64
         self.n_embd = config.n_embd
         self.n_layer = config.n_layer
-        self.score_loss = config.score_loss
         self.transformer = nn.ModuleDict(
             dict(
                 wte=nn.Linear(config.square_dim, self.n_embd),
