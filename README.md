@@ -46,8 +46,7 @@ if y["mate"] is not None:
 return 1 / (1 + math.exp(-0.00368208 * y["cp"]))
 ```
 
-0 means black wins with proba 1
-1 means white wins with proba 1
+0 means black wins with proba 1, 1 means white wins with proba 1.
 
 #### Best move:
 
