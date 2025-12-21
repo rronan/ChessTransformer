@@ -99,10 +99,6 @@ Edit `config.yml` to select the engine (see lichess-bot documentation) and run:
 ALPHAMINUSTWO_CHKP=<path/to/checkpoint> python lichess-bot.py
 ```
 
-## Next
-
-- Improve bot with MCTS
-
 ## Thanks:
 - lichess.org
 - https://github.com/karpathy/nanoGPT: for weight initialization and optimizer configuration
