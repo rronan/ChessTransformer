@@ -19,11 +19,15 @@ Usage:
 
 CHKP = os.environ["ALPHAMINUSTWO_CHKP"]
 
+#
+from alphaminustwo.mcts_gpt import mcts
+
+
 class AlphaMinusTwo(MinimalEngine):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        model_cfg = config.ModelCFG()
+        model_cfg = config.GPT124M()
         self.model = GPT(model_cfg).to(self.device)
         # temp fix
         sys.modules["config"] = config
@@ -36,6 +40,14 @@ class AlphaMinusTwo(MinimalEngine):
         self.model.eval()
 
     def search(self, board: chess.Board, *args) -> PlayResult:
-        move_list, eval_list = self.model.generate_from_board([board], legal_move=True)
-        print(eval_list[0])
-        return PlayResult(move_list[0], None)
+        best_move = mcts(
+            board,
+            self.model,
+            max_breadth=8,
+            max_depth=8,
+            num_simulations=200,
+        )
+        # move_list, eval_list = self.model.generate_from_board([board], legal_move=True)
+        # print(eval_list[0])
+        # best_move = move_list[0]
+        return PlayResult(best_move, None)

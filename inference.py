@@ -4,11 +4,11 @@ from argparse import ArgumentParser
 import torch
 
 from alphaminustwo.model import GPT
-from alphaminustwo.config import ModelCFG
+from alphaminustwo.config import GPT124M
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 torch.set_float32_matmul_precision("high")  # on RTF4090, 40% speedup
-model_cfg = ModelCFG()
+model_cfg = GPT124M()
 
 
 def parse_args():
@@ -29,10 +29,10 @@ model.eval()
 
 def run_and_print(model, fen_list):
     board_list = [chess.Board(fen=fen) for fen in fen_list]
-    move_list, eval_list = model.generate_from_board(board_list)
-    for fen, move, eval in zip(fen_list, move_list, eval_list):
+    move_list, score_list = model.generate_from_board(board_list)
+    for fen, move, score in zip(fen_list, move_list, score_list):
         print("https://lichess.org/analysis/fromPosition/" + fen.replace(" ", "_"))
-        print(f"{eval * 60:.3f} - {move.uci()}")
+        print(f"{score * 60:.3f} - {move.uci()}")
 
 
 if args.fen is not None:

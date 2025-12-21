@@ -4,6 +4,20 @@ A transformer similar to GPT2-124M trained to predict Stockfish evaluation and b
 
 Bot available to play against here: https://lichess.org/@/alphaminustwo. No tree search, just sampling in the predicted move distribution, among legal moves.
 
+## Installation
+
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management. First, install uv:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then install the project dependencies:
+
+```bash
+uv sync
+```
+
 ## Dataset
 
 Dataset consists in approx. 350M chess positions (https://www.kaggle.com/datasets/lichess/chess-evaluations) along with stockfish evaluation. The dataset is stored as a CSV as follow:
@@ -15,21 +29,32 @@ Dataset consists in approx. 350M chess positions (https://www.kaggle.com/dataset
 - `cp`: the position's centipawn evaluation. This is None if mate is certain
 - `mate`: the position's mate evaluation. This is None if mate is not certain
 
-We deduplicate this dataset to 132M unique chess positions, and train the network to predict both evaluation and best move. 
+Download the dataset:
+```
+wget https://database.lichess.org/lichess_db_eval.jsonl.zst
+```
 
-Dataset can be downloaded with `scripts/download.py`.
+Then uncompress in to `data/lichess_db_eval.jsonl`.
 
 ## Data Processing
 
 ### Input
 
-The FEN is transformed into a 64x18 tensor, where each element of the sequence is a {0,1} tensor representation of a square, as a concatenation of:
+The FEN is transformed into a 65x13 tensor, where:
 
+- The first element is a board level representation:
+```
+- position 0 equal to 1 if white is to move, 0 otherwise.
+- position 1 equal to 1 if white can castle King-side, 0 otherwise.
+- position 2 equal to 1 if white can castle Queen-side, 0 otherwise.
+- position 3 equal to 1 if black can castle King-side, 0 otherwise.
+- position 4 equal to 1 if black can castle Queen-side, 0 otherwise.
+- position 5 to 12 are set to zero
+```
+
+- Element 1 to 64 elements are a {0,1} tensor representation of a square, as a concatenation of:
 ```
 - a 12 one-hot tensor encoding the piece (6 white and 6 black pieces)
-- a 1-tensor, equal to 1 if white is to move, 0 otherwise.
-- a 1-tensor, equal to 1 if white can castle, 0 otherwise.
-- a 1-tensor, equal to 1 if black can castle, 0 otherwise.
 - a 1-tensor, equal to 1 if this square is subject to en-passant, 0 otherwise.
 ```
 
@@ -37,22 +62,26 @@ The FEN is transformed into a 64x18 tensor, where each element of the sequence i
 
 #### Evaluation:
 
-Two cases:
-- Mate is forced, evaluation ranges from `4 / 3` (mate in 15 moves) to `4.` (mate in 1).
-- Mate is not forced, evaluation: `min(centipawn / 1500, 4.)`
+Evaluation is the win probability for white, following the formula:
 
-Thus, evaluation ranges from `-4.` to `4.`. Mean value is `~0.2` and variance is `~1.25`.
+```
+if y["mate"] is not None:
+    return y["mate"] > 0
+return 1 / (1 + math.exp(-0.00368208 * y["cp"]))
+```
+
+0 means black wins with proba 1
+1 means white wins with proba 1
 
 #### Best move:
 
 Best move is encoded as a 64x64 one-hot representation of the starting and ending squares.
 
-
 Implementation can be found in `alphaminustwo/dataset.py`.
 
 ## Model
 
-The model is a transformer very similar to GPT2-124M, where the token embedding is replaced by a Linear layer of shape `18x768`. The language model head is replaced by two heads, MLPs, to predict the evaluation and best move.
+The model is a transformer very similar to GPT2-124M, where the token embedding is replaced by a Linear layer of shape `13x768`. The language model head is replaced by two heads, MLPs, to predict the evaluation and best move.
 
 Implementation can be found in `alphaminustwo/model.py`.
 
@@ -64,7 +93,7 @@ We Stockfish at depth 1 as a baseline, which
 
 We train the model for 1 epoch on a RTX-4090, which takes approx. 24h.
 
-We use Mean Square Error for evaluation prediction and Negative Log-Likelihood for best move prediction. We set the loss to `evaluation_loss + 0.5 * move_loss`, so that loss scale in similar to the one from GPT-2 (ln(50257) ~= 10). We use a batch size of `512`, linear warmup for 2000 steps and cosine annealing until the end of the training.
+We use Mean Square Error for evaluation prediction and Negative Log-Likelihood for best move prediction. We set the loss to `evaluation_loss + 0.5 * move_loss`, so that loss scale in similar to the one from GPT-2 (log2(50257) ~= 12). We use a batch size of `512`, linear warmup for 2000 steps and cosine annealing until the end of the training.
 
 On validation set, we obtain a loss of `0.21` on evaluation and `1.56` on move prediction.
 
@@ -106,6 +135,5 @@ ALPHAMINUSTWO_CHKP=<path/to/checkpoint> python lichess-bot.py
 ## Thanks:
 - lichess.org
 - https://github.com/karpathy/nanoGPT: for weight initialization and optimizer configuration
-- https://www.kaggle.com/datasets/lichess/chess-evaluations
 
 See also this paper https://arxiv.org/abs/2402.04494 for a bigger model trained on a bigger dataset, and more.
