@@ -1,18 +1,17 @@
 # ChessTransformer
 
-A transformer similar to GPT2-124M trained to predict Stockfish evaluation and best move, on 132M chess positions. 
+A transformer similar to GPT2-124M trained to predict Stockfish evaluation and best move, on 300M chess positions. 
 
 Bot available to play against here: https://lichess.org/@/alphaminustwo. No tree search, just sampling in the predicted move distribution, among legal moves.
 
 ## Installation
 
-This project uses [uv](https://docs.astral.sh/uv/) for dependency management. First, install uv:
+Install uv:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
-
-Then install the project dependencies:
+Install the project dependencies:
 
 ```bash
 uv sync
@@ -20,43 +19,20 @@ uv sync
 
 ## Dataset
 
-Dataset consists in approx. 350M chess positions (https://www.kaggle.com/datasets/lichess/chess-evaluations) along with stockfish evaluation. The dataset is stored as a CSV as follow:
-
-- `fen`: the position FEN contains pieces, active color, castling rights, and en passant square
-- `line`: the principal variation, in UCI format
-- `depth`: the depth reached by the engine
-- `knodes`: the number of kilo-nodes searched by the engine
-- `cp`: the position's centipawn evaluation. This is None if mate is certain
-- `mate`: the position's mate evaluation. This is None if mate is not certain
+Dataset consists in approx. 300M chess positions (https://www.kaggle.com/datasets/lichess/chess-evaluations) along with stockfish evaluation.
 
 Download the dataset:
 ```
 wget https://database.lichess.org/lichess_db_eval.jsonl.zst
 ```
 
-Then uncompress in to `data/lichess_db_eval.jsonl`.
+Uncompress it to `data/lichess_db_eval.jsonl`.
 
 ## Data Processing
 
 ### Input
 
-The FEN is transformed into a 65x13 tensor, where:
-
-- The first element is a board level representation:
-```
-- position 0 equal to 1 if white is to move, 0 otherwise.
-- position 1 equal to 1 if white can castle King-side, 0 otherwise.
-- position 2 equal to 1 if white can castle Queen-side, 0 otherwise.
-- position 3 equal to 1 if black can castle King-side, 0 otherwise.
-- position 4 equal to 1 if black can castle Queen-side, 0 otherwise.
-- position 5 to 12 are set to zero
-```
-
-- Element 1 to 64 elements are a {0,1} tensor representation of a square, as a concatenation of:
-```
-- a 12 one-hot tensor encoding the piece (6 white and 6 black pieces)
-- a 1-tensor, equal to 1 if this square is subject to en-passant, 0 otherwise.
-```
+The FEN is transformed into a `65x13` or `64x18` tensor, depending on dataprocessing. See `alphaminustwo/dataset.py` for details.
 
 ### Output
 
@@ -85,15 +61,11 @@ The model is a transformer very similar to GPT2-124M, where the token embedding 
 
 Implementation can be found in `alphaminustwo/model.py`.
 
-## Baselines:
-
-We Stockfish at depth 1 as a baseline, which 
-
 ## Training:
 
 We train the model for 1 epoch on a RTX-4090, which takes approx. 24h.
 
-We use Mean Square Error for evaluation prediction and Negative Log-Likelihood for best move prediction. We set the loss to `evaluation_loss + 0.5 * move_loss`, so that loss scale in similar to the one from GPT-2 (log2(50257) ~= 12). We use a batch size of `512`, linear warmup for 2000 steps and cosine annealing until the end of the training.
+We use Negative Log-Likelihood for evaluation (1D) and best move (64\*64D) prediction. We set the loss to `12 * evaluation_loss + move_loss`, so that both loss have the same scale (log2(64\*64) = 12). We use a batch size of `512`, linear warmup for `2000` steps and cosine annealing until the end of the training, at `600k` steps.
 
 On validation set, we obtain a loss of `0.21` on evaluation and `1.56` on move prediction.
 
@@ -103,12 +75,13 @@ The curves look like this:
 
 ## Evaluation
 
+### Puzzle
+
+We evaluate on lichess puzzles, achieving a Elo of 1960
+
+### Lichess bot
+
 We evaluate on lichess.org, playing against human. The model seems to have approx. 1500 Elo in blitz and 1900 in bullet (probably a bit more in 1+0, a bit less in 1+1)
-
-TODO:
-- evaluate against stockfish at depths 1, 2, 5, etc.
-- evaluate against puzzles like here: https://arxiv.org/abs/2402.04494
-
 
 ## Bot
 
@@ -136,4 +109,4 @@ ALPHAMINUSTWO_CHKP=<path/to/checkpoint> python lichess-bot.py
 - lichess.org
 - https://github.com/karpathy/nanoGPT: for weight initialization and optimizer configuration
 
-See also this paper https://arxiv.org/abs/2402.04494 for a bigger model trained on a bigger dataset, and more.
+See also this paper https://arxiv.org/abs/2402.04494 for a bigger model trained on a bigger dataset.
