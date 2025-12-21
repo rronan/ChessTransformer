@@ -63,8 +63,6 @@ Implementation can be found in `alphaminustwo/model.py`.
 
 ## Training:
 
-We train the model for 1 epoch on a RTX-4090, which takes approx. 24h.
-
 We use Negative Log-Likelihood for evaluation (1D) and best move (64\*64D) prediction. We set the loss to `12 * evaluation_loss + move_loss`, so that both loss have the same scale (log2(64\*64) = 12). We use a batch size of `512`, linear warmup for `2000` steps and cosine annealing until the end of the training, at `600k` steps.
 
 On validation set, we obtain a loss of `0.21` on evaluation and `1.56` on move prediction.
