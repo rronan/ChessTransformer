@@ -71,7 +71,7 @@ On validation set, we obtain a loss of `0.21` on evaluation and `1.56` on move p
 
 The curves look like this:
 
-![alt text](wandb.png)
+<img width="1302" height="590" alt="Screenshot 2025-12-21 at 19 24 29" src="https://github.com/user-attachments/assets/664a3dc2-8fcc-44c0-b861-a9f87f69d237" />
 
 ## Evaluation
 
