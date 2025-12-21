@@ -46,8 +46,7 @@ if y["mate"] is not None:
 return 1 / (1 + math.exp(-0.00368208 * y["cp"]))
 ```
 
-0 means black wins with proba 1
-1 means white wins with proba 1
+0 means black wins with proba 1, 1 means white wins with proba 1.
 
 #### Best move:
 
@@ -62,8 +61,6 @@ The model is a transformer very similar to GPT2-124M, where the token embedding 
 Implementation can be found in `alphaminustwo/model.py`.
 
 ## Training:
-
-We train the model for 1 epoch on a RTX-4090, which takes approx. 24h.
 
 We use Negative Log-Likelihood for evaluation (1D) and best move (64\*64D) prediction. We set the loss to `12 * evaluation_loss + move_loss`, so that both loss have the same scale (log2(64\*64) = 12). We use a batch size of `512`, linear warmup for `2000` steps and cosine annealing until the end of the training, at `600k` steps.
 
@@ -100,10 +97,6 @@ Edit `config.yml` to select the engine (see lichess-bot documentation) and run:
 ```
 ALPHAMINUSTWO_CHKP=<path/to/checkpoint> python lichess-bot.py
 ```
-
-## Next
-
-- Improve bot with MCTS
 
 ## Thanks:
 - lichess.org
