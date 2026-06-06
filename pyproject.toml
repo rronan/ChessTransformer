@@ -12,7 +12,7 @@ dependencies = [
     "datasets",
     "tqdm",
     "torch",
-    "wandb",
+    "wandb>=0.24.1",
     "stockfish",
     "kagglehub",
     "pytest",

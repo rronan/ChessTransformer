@@ -6,8 +6,6 @@ import random
 import torch
 from dotenv import load_dotenv
 
-load_dotenv()  # reads WANDB_API_KEY from .env
-
 from alphaminustwo.model import GPT
 from alphaminustwo.puzzle import load_puzzles, evaluate_model_on_puzzles
 from alphaminustwo.utils import (
@@ -34,6 +32,8 @@ from alphaminustwo.rollout import (
 )
 from alphaminustwo import config
 from alphaminustwo.schedulers import get_scheduler
+
+load_dotenv()
 
 grpo_cfg = config.GRPOCFG()
 model_cfg = config.GPT124M()
@@ -72,17 +72,22 @@ optimizer = model.configure_optimizers(
 scheduler = get_scheduler(optimizer, grpo_cfg)
 
 if grpo_cfg.compile:
-    model = torch.compile(model)
+    model = torch.compile(model)  # type: ignore
     print("Model compiled")
 
-wandb.login()
+wandb.login(key=os.getenv("WANDB_API_KEY"))
 run = wandb.init(
+    entity="rronan-cole-polytechnique",
     project="chess_transformer",
     config={"model": vars(model_cfg), "grpo": vars(grpo_cfg)},
 )
 init_log(grpo_cfg.log_dir)
 
 puzzles = load_puzzles(grpo_cfg.puzzle_path)
+# Held-out validation split, deterministic across restarts (dedicated RNG so the
+# split is independent of global random state)
+random.Random(0).shuffle(puzzles)
+val_puzzles, puzzles = puzzles[:500_000], puzzles[500_000:]
 
 
 def collect_episodes():
@@ -115,13 +120,13 @@ def collect_episodes():
 
 
 stats = {}
-running_stats = defaultdict(float)
+running_stats: defaultdict[str, float] = defaultdict(float)
 for step in range(init_step, init_step + grpo_cfg.max_steps):
     rel_step = step - init_step
     if rel_step % grpo_cfg.eval_interval == 0:
         model.eval()
         with torch.no_grad():
-            puzzle_sample = random.sample(puzzles, grpo_cfg.n_puzzles)
+            puzzle_sample = random.sample(val_puzzles, grpo_cfg.n_puzzles)
             current_elo, result_list = evaluate_model_on_puzzles(
                 model=model,
                 puzzles=puzzle_sample,
@@ -148,7 +153,7 @@ for step in range(init_step, init_step + grpo_cfg.max_steps):
 
     # Optimization phase
     model.train()
-    perm_metrics = defaultdict(float)
+    perm_metrics: defaultdict[str, float] = defaultdict(float)
     n_mb = 0
     for _ in range(grpo_cfg.inner_epochs):
         perm = torch.randperm(N)

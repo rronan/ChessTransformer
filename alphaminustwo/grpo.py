@@ -3,34 +3,15 @@ import torch.nn.functional as F
 
 
 def masked_log_probs(logits: torch.Tensor, legal_mask: torch.Tensor) -> torch.Tensor:
-    """
-    Log-probabilities of the policy over legal moves.
-
-    Matches the sampling convention of GPT.generate_from_board: illegal moves
-    are masked to -inf, then the distribution is softmax over the rest.
-
-    logits: [B, 4096], legal_mask: [B, 4096] (1 = legal, 0 = illegal)
-    Returns [B, 4096] with -inf on illegal moves.
-    """
     masked = logits.masked_fill(legal_mask == 0, float("-inf"))
     return F.log_softmax(masked, dim=-1)
 
 
 def gather_logp(logp: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
-    """logp: [B, 4096], actions: [B] -> [B]"""
     return logp.gather(-1, actions.unsqueeze(-1)).squeeze(-1)
 
 
 def exact_kl(logp_theta: torch.Tensor, logp_ref: torch.Tensor) -> torch.Tensor:
-    """
-    Closed-form KL(pi_theta || pi_ref) per state, over the legal move set.
-
-    Both inputs are [B, 4096] log-probs with -inf on illegal moves (the same
-    legal mask must have been applied to both). Returns [B].
-
-    The -inf entries are zeroed *before* any arithmetic: -inf - -inf = nan
-    would otherwise poison gradients through torch.where (0 * nan = nan).
-    """
     legal = torch.isfinite(logp_theta)
     lt = logp_theta.masked_fill(~legal, 0.0)
     lr = logp_ref.masked_fill(~legal, 0.0)
@@ -39,7 +20,6 @@ def exact_kl(logp_theta: torch.Tensor, logp_ref: torch.Tensor) -> torch.Tensor:
 
 
 def exact_entropy(logp_theta: torch.Tensor) -> torch.Tensor:
-    """Closed-form entropy per state. logp_theta: [B, 4096] -> [B]"""
     legal = torch.isfinite(logp_theta)
     lt = logp_theta.masked_fill(~legal, 0.0)
     p_theta = lt.exp() * legal
@@ -47,12 +27,6 @@ def exact_entropy(logp_theta: torch.Tensor) -> torch.Tensor:
 
 
 def group_advantages(rewards: torch.Tensor, eps: float = 1e-4) -> torch.Tensor:
-    """
-    Group-relative advantages: (r - mean) / (std + eps) within each group.
-
-    rewards: [num_groups, G] -> [num_groups, G]. Constant-reward groups yield
-    zero advantage (zero gradient), which is the intended GRPO behavior.
-    """
     mean = rewards.mean(dim=-1, keepdim=True)
     # correction=0 so single-episode groups give std=0 -> adv=0 instead of nan
     std = rewards.std(dim=-1, keepdim=True, correction=0)

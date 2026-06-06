@@ -1,12 +1,12 @@
 import wandb
 import sys
 from collections import defaultdict
+import os
 import random
 from tqdm import trange
 import torch
 from dotenv import load_dotenv
 
-load_dotenv()  # reads WANDB_API_KEY from .env
 
 from alphaminustwo.model import GPT
 from alphaminustwo.puzzle import load_puzzles, evaluate_model_on_puzzles
@@ -21,6 +21,8 @@ from alphaminustwo.utils import (
 from alphaminustwo.dataset import get_train_loader_line_augmented
 from alphaminustwo import config
 from alphaminustwo.schedulers import get_scheduler
+
+load_dotenv()
 
 train_cfg = config.TrainCFG()
 model_cfg = config.GPT124M()
@@ -48,11 +50,12 @@ init_step = 0
 if len(sys.argv) > 1:
     init_step = load_checkpoint(sys.argv[1], model, optimizer, scheduler)
 if train_cfg.compile:
-    model = torch.compile(model)
+    model = torch.compile(model)  # type: ignore
     print("Model compiled")
 
-wandb.login()
+wandb.login(key=os.getenv("WANDB_API_KEY"))
 run = wandb.init(
+    entity="rronan-cole-polytechnique",
     project="chess_transformer",
     config={"model": vars(model_cfg), "training": vars(train_cfg)},
 )
@@ -83,7 +86,7 @@ for step in range(init_step, train_cfg.max_steps, train_cfg.log_interval):
             current_elo=current_elo,
         )
     model.train()
-    running_stats = defaultdict(float)
+    running_stats: defaultdict[str, float] = defaultdict(float)
     for i in (pbar := trange(train_cfg.log_interval)):
         optimizer.zero_grad()
         loss_score, loss_move, loss = 0, 0, 0
@@ -100,9 +103,9 @@ for step in range(init_step, train_cfg.max_steps, train_cfg.log_interval):
         optimizer.step()
         scheduler.step()
         stats = {
-            "loss_score": loss_score.item(),
-            "loss_move": loss_move.item(),
-            "loss": loss.item(),
+            "loss_score": loss_score.item(),  # type: ingore
+            "loss_move": loss_move.item(),  # type: ingore
+            "loss": loss.item(),  # type: ingore
             "grad_norm": norm.item(),
             "lr": scheduler.get_last_lr()[0],
         }
