@@ -1,5 +1,8 @@
 wandb
 log
+.env
 alphaminustwo.egg-info/
 alphaminustwo/__pycache__/
 data/
+log_grpo/
+__pycache__/

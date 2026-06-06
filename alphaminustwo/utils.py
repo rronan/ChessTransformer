@@ -14,7 +14,12 @@ def set_seed(device: str):
 
 
 def set_device():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
     print("device:", device)
     torch.set_float32_matmul_precision("high")  # on RTF4090, 40% speedup
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -42,6 +47,13 @@ def load_checkpoint(
     optimizer.load_state_dict(chkp["optimizer"])
     scheduler.load_state_dict(chkp["scheduler"])
     return chkp["step"]
+
+
+def load_model_only(checkpoint_path: str, model: nn.Module):
+    print("Loading (weights only):", checkpoint_path)
+    chkp = torch.load(checkpoint_path, weights_only=False, map_location="cpu")
+    model.load_state_dict(chkp["model"])
+    return chkp["step"], chkp.get("current_elo")
 
 
 def save_checkpoint(

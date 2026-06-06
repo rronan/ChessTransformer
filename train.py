@@ -4,6 +4,9 @@ from collections import defaultdict
 import random
 from tqdm import trange
 import torch
+from dotenv import load_dotenv
+
+load_dotenv()  # reads WANDB_API_KEY from .env
 
 from alphaminustwo.model import GPT
 from alphaminustwo.puzzle import load_puzzles, evaluate_model_on_puzzles

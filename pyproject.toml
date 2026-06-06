@@ -17,6 +17,7 @@ dependencies = [
     "kagglehub",
     "pytest",
     "chess",
+    "python-dotenv>=1.2.2",
 ]
 
 [tool.setuptools]

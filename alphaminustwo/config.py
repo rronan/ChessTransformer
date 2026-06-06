@@ -31,7 +31,52 @@ class GPT345M:
 
 
 # Alias for compatibility
-GPT124M = ModelCFG
+ModelCFG = GPT124M
+
+
+@dataclass
+class GRPOCFG:
+    init_checkpoint: str = "log/model_600000.pt"
+    puzzle_path: str = "data/lichess_db_puzzle.csv"
+    extra_embedding: bool = CommonConfig.extra_embedding
+    # Rollout
+    source: str = "puzzle"  # "puzzle" | "selfplay" | "mixed"
+    group_size_G: int = 8
+    puzzle_groups_per_step: int = 64
+    puzzle_reward_mode: str = "step"  # "step" | "binary" | "partial"
+    selfplay_starts_per_step: int = 32
+    max_plies: int = 200
+    max_random_opening_plies: int = 8
+    temperature: float = 1.0
+    # GRPO loss
+    clip_eps: float = 0.2
+    kl_beta: float = 0.02
+    entropy_coef: float = 0.0
+    adv_eps: float = 1e-4
+    freeze_score_head: bool = True
+    # Optimization
+    inner_epochs: int = 1
+    train_mb: int = 256
+    compile: bool = False
+    grad_clip: float = 1.0
+    weight_decay: float = 0.0
+    lr: float = 1e-6
+    lr_scheduler: str = "dummy"
+    lr_start_factor: float = 0.1
+    linear_warmup_iters: int = 100
+    lr_end_factor: float = 0.1
+    cosine_annealing_iters: int = 10_000
+    beta1: float = 0.9
+    beta2: float = 0.95
+    # Loop
+    max_steps: int = 10_000
+    eval_interval: int = 50
+    checkpoint_interval: int = 500
+    n_puzzles: int = 1000
+    initial_puzzle_elo: float = 170
+    log_dir: str = "log_grpo"
+
+    assert checkpoint_interval % eval_interval == 0
 
 
 @dataclass

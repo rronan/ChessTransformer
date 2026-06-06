@@ -91,6 +91,14 @@ def index2uci(index: int):
     return res
 
 
+def uci_match(uci4: str, expected: str) -> bool:
+    """
+    index2uci moves carry no promotion suffix: a bare from-to move means queen
+    promotion. Underpromotions are not representable and never match.
+    """
+    return expected == uci4 or expected == uci4 + "q"
+
+
 def process_evaluation(y: dict) -> float:
     if y["mate"] is not None:
         return float(y["mate"] > 0)

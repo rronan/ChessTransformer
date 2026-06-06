@@ -7,7 +7,7 @@ import chess
 from tqdm import tqdm
 
 from alphaminustwo.model import GPT
-from alphaminustwo.dataset import fen2tensor, uci2index, index2uci
+from alphaminustwo.dataset import fen2tensor, uci2index, index2uci, uci_match
 
 K = 1
 
@@ -58,7 +58,8 @@ def evaluate_puzzle(
             best_idx = torch.argmax(logits, dim=-1)
             predicted_move = index2uci(best_idx.item())
             predicted_moves.append(predicted_move)
-            if predicted_move != expected_move:
+            # bare from-to means queen promotion (see uci_match)
+            if not uci_match(predicted_move, expected_move):
                 return False, predicted_moves
         try:
             board.push_uci(expected_move)
