@@ -1,10 +1,3 @@
-"""
-Evaluation function to compute model's Elo rating on chess puzzles.
-
-This module evaluates a chess model's puzzle-solving ability by testing it against
-the Lichess puzzle database and computing an Elo rating based on performance.
-"""
-
 import csv
 import random
 from typing import Optional, Tuple, List, Dict
@@ -33,8 +26,8 @@ class PuzzleResult:
     puzzle_id: str
     puzzle_rating: int
     solved: bool
-    predicted_moves: List[str]
-    expected_moves: List[str]
+    predicted_moves: list[str]
+    expected_moves: list[str]
     fen: str
 
 
@@ -44,11 +37,11 @@ class EloReport:
     num_puzzles: int
     num_solved: int
     accuracy: float
-    puzzles_by_rating: Dict[str, Tuple[int, int]]
-    results: List[PuzzleResult]
+    puzzles_by_rating: dict[str, tuple[int, int]]
+    results: list[PuzzleResult]
 
 
-def load_puzzles(csv_path: str, max_puzzles: Optional[int] = None) -> List[Dict]:
+def load_puzzles(csv_path: str, max_puzzles: Optional[int] = None) -> list[dict]:
     """
     Load puzzles from CSV file. If max_puzzles is specified, randomly samples puzzles.
 
@@ -77,7 +70,7 @@ def load_puzzles(csv_path: str, max_puzzles: Optional[int] = None) -> List[Dict]
     return puzzles
 
 
-def evaluate_puzzle(model: GPT, puzzle: Dict) -> Tuple[bool, List[str]]:
+def evaluate_puzzle(model: GPT, puzzle: dict) -> tuple[bool, list[str]]:
     board = chess.Board(puzzle["fen"])
     moves = puzzle["moves"]
     predicted_moves = []

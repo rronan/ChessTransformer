@@ -45,7 +45,7 @@ class GRPOCFG:
     puzzle_groups_per_step: int = 64
     puzzle_reward_mode: str = "step"  # "step" | "binary" | "partial"
     selfplay_starts_per_step: int = 32
-    max_plies: int = 200
+    max_plies: int = 500
     max_random_opening_plies: int = 8
     temperature: float = 1.0
     # GRPO loss
